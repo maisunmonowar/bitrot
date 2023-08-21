@@ -1,5 +1,6 @@
-import subprocess
 import os
+import argparse
+import subprocess
 
 def write_hash(directory):
     for filename in os.listdir(directory):     
@@ -23,12 +24,12 @@ def write_hash(directory):
             write_hash(directory + "/" + filename)
     return 0
 
-def main():
-    cwd = os.getcwd() 
-    if write_hash(cwd):
-        print("Error running check_hash")
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Write hash files.')
+    parser.add_argument('-d', '--directory', type=str, help='Directory to write hash files.', default=os.getcwd())
+    args = parser.parse_args()
+
+    if write_hash(args.directory):
+        print("Error running write_hash")
     else:
         print("All done. Ok. ")
-
-if __name__ == '__main__':
-    main()

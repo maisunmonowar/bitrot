@@ -1,4 +1,5 @@
 import os
+import argparse
 import subprocess
 
 def freeze_files(directory):
@@ -17,9 +18,11 @@ def freeze_files(directory):
             else:
                 freeze_files(os.path.join(directory, filename))
 
-def main():
-    directory = os.getcwd()
-    freeze_files(directory)
 
 if __name__ == '__main__':
-    main()
+    # parse arguments
+    parser = argparse.ArgumentParser(description='Freeze your files for preservation.')
+    parser.add_argument('-d', '--directory', type=str, help='Directory where your desired files are stored.', default=os.getcwd())
+    args = parser.parse_args()
+
+    freeze_files(args.directory)

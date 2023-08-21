@@ -1,5 +1,6 @@
-import subprocess
 import os
+import argparse
+import subprocess
 
 def check_hash(directory):
     for filename in os.listdir(directory):     
@@ -28,11 +29,11 @@ def check_hash(directory):
             check_hash(directory + "/" + filename)
     return 0
 
-def main():
-    cwd = os.getcwd()
-    if check_hash(cwd):
-        print("Error running check_hash")
-    
-
 if __name__ == '__main__':
-    main()
+    # parse arguments
+    parser = argparse.ArgumentParser(description='Check for bit rot.')
+    parser.add_argument('-d', '--directory', type=str, help='Directory to check for bit rot.', default=os.getcwd())
+    args = parser.parse_args()
+
+    if check_hash(args.directory):
+        print("Error running check_hash")
