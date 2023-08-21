@@ -54,3 +54,8 @@ For some reason, png files cannot be recovered. In somecases, I see files with s
 
 # Disclaimer
 I am not liable for any data loss you might have on your computer. This script doesn't come with any guarantee. 
+
+
+# Docker build 
+docker build -t test . 
+docker run --rm -it --mount type=bind,source="$(pwd)"\target,target=/target test
