@@ -61,21 +61,33 @@ class FileScanner:
                 }
 
     def find_unique_files(self):
-        for checksum in self.restructured_dict:
-            if len(self.restructured_dict[checksum]['details']) == 1:
-                self.unique_files.append(self.restructured_dict[checksum]['details'][0])
+            for checksum in self.restructured_dict:
+                if len(self.restructured_dict[checksum]['details']) == 1:
+                    self.unique_files.append(self.restructured_dict[checksum]['details'][0])
+       
 
     def find_duplicate_files(self):
         for checksum in self.restructured_dict:
             if len(self.restructured_dict[checksum]['details']) > 2:
                 self.duplicate_files.append(self.restructured_dict[checksum]['details'])
 
-    def print_results(self):
-        print("Unique files: ")
-        print(self.unique_files)
-        print("Duplicate files: ")
-        print(self.duplicate_files)
-        print(self.restructured_dict)
+    
+   
+    
+    def display_unique_files(self):
+         for itemss in self.unique_files:
+            print(itemss[0], end= "\t")
+            print(itemss[1])
+    
+   
+    def display_duplicate_files(self):
+        print("Duplicate files:")
+        for files in self.duplicate_files:
+            print(f"File: {files[0][0]}")
+            for file in files:
+                print(f"\tPath: {file[0]}", end= " ")
+                print(f"\tSize: {file[1]} bytes")
+            print("\n")
 
 if __name__ == "__main__":
     # Parse the command line arguments
@@ -110,4 +122,6 @@ if __name__ == "__main__":
     scanner.write_json("result.json")
 
     # Print the results
-    scanner.print_results()
+    scanner.display_duplicate_files()
+    print("\n")
+    scanner.display_unique_files()
