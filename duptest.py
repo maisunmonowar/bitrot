@@ -13,74 +13,70 @@ import json
 import sys
 import argparse
 
-# Function to scan a directory recursively and return a list of files
-def scan_dir(path):
-    file_list = []
-    print("Scanning directory: " + path)
-    for root, dirs, files in os.walk(path):
-        for file in files:
-            file_list.append(os.path.join(root, file))
-    return file_list
+class FileScanner:
+    def __init__(self, path):
+        self.path = path
+        self.file_list = []
+        self.file_dict = {}
+        self.restructured_dict = {}
+        self.unique_files = []
+        self.duplicate_files = []
 
-# Function to calculate the checksum of a file
-def checksum(file):
-    sha256_hash = hashlib.sha256()
-    with open(file,"rb") as f:
-        for byte_block in iter(lambda: f.read(4096),b""):
-            sha256_hash.update(byte_block)
+    def scan_dir(self):
+        print("Scanning directory: " + self.path)
+        for root, dirs, files in os.walk(self.path):
+            for file in files:
+                self.file_list.append(os.path.join(root, file))
+
+    def checksum(self, file):
+        sha256_hash = hashlib.sha256()
+        with open(file, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
         return sha256_hash.hexdigest()
-    
-# Function to create a dictionary of files, file sizes, checksums and paths
-def create_dict(file_list):
-    file_dict = {}
-    for file in file_list:
-        file_dict[file] = {}
-        file_dict[file]['size'] = os.path.getsize(file)
-        file_dict[file]['checksum'] = checksum(file)
-        file_dict[file]['path'] = file
-    return file_dict
 
-# Function to write the dictionary to a json file
-def write_json(file_dict, json_file):
-    with open(json_file, 'w') as f:
-        json.dump(file_dict, f, indent=4)
-    return
+    def create_dict(self):
+        for file in self.file_list:
+            self.file_dict[file] = {}
+            self.file_dict[file]['size'] = os.path.getsize(file)
+            self.file_dict[file]['checksum'] = self.checksum(file)
+            self.file_dict[file]['path'] = file
 
-# Function to read the json file and return the dictionary
-def read_json(json_file):
-    with open(json_file, 'r') as f:
-        file_dict = json.load(f)
-    return file_dict
-# restructure the dictionary to have the checksum as the key
-def restructure_dict(file_dict):
-    restructured_dict = {}
-    for file in file_dict:
-        checksum = file_dict[file]['checksum']
-        if checksum in restructured_dict:
-            restructured_dict[checksum]['details'].append((file_dict[file]['path'], file_dict[file]['size']))
-        else:
-            restructured_dict[checksum] = {
-                'details': [(file_dict[file]['path'], file_dict[file]['size'])]
-            }
-    return restructured_dict
+    def write_json(self, json_file):
+        with open(json_file, 'w') as f:
+            json.dump(self.restructured_dict, f, indent=4)
 
-# Function to find files that appear only once
-def find_unique_files(restructured_dict):
-    unique_files = []
-    for checksum in restructured_dict:
-        if len(restructured_dict[checksum]['details']) == 1:
-            unique_files.append(restructured_dict[checksum]['details'][0])
-    return unique_files
+    def read_json(self, json_file):
+        with open(json_file, 'r') as f:
+            self.file_dict = json.load(f)
 
-# Function to find the files that appear more that 2 times
-def find_duplicate_files(restructured_dict):
-    duplicate_files = []
-    for checksum in restructured_dict:
-        if len(restructured_dict[checksum]['details']) > 2:
-            duplicate_files.append(restructured_dict[checksum]['details'])
-    return duplicate_files
+    def restructure_dict(self):
+        for file in self.file_dict:
+            checksum = self.file_dict[file]['checksum']
+            if checksum in self.restructured_dict:
+                self.restructured_dict[checksum]['details'].append((self.file_dict[file]['path'], self.file_dict[file]['size']))
+            else:
+                self.restructured_dict[checksum] = {
+                    'details': [(self.file_dict[file]['path'], self.file_dict[file]['size'])]
+                }
 
-# Main function
+    def find_unique_files(self):
+        for checksum in self.restructured_dict:
+            if len(self.restructured_dict[checksum]['details']) == 1:
+                self.unique_files.append(self.restructured_dict[checksum]['details'][0])
+
+    def find_duplicate_files(self):
+        for checksum in self.restructured_dict:
+            if len(self.restructured_dict[checksum]['details']) > 2:
+                self.duplicate_files.append(self.restructured_dict[checksum]['details'])
+
+    def print_results(self):
+        print("Unique files: ")
+        print(self.unique_files)
+        print("Duplicate files: ")
+        print(self.duplicate_files)
+        print(self.restructured_dict)
+
 if __name__ == "__main__":
     # Parse the command line arguments
     parser = argparse.ArgumentParser()
@@ -91,28 +87,27 @@ if __name__ == "__main__":
     if len(sys.argv) == 1:
         parser.print_help()
         sys.exit(1)
-    
+
+    # Create a FileScanner object
+    scanner = FileScanner(args.path)
+
     # Scan the directory recursively
-    file_list = scan_dir(args.path)
-    
+    scanner.scan_dir()
+
     # Create a dictionary of files, file sizes, checksums and paths
-    file_dict = create_dict(file_list)
-    
-    # restructure:
-    restructured_dict = restructure_dict(file_dict)
+    scanner.create_dict()
+
+    # Restructure the dictionary
+    scanner.restructure_dict()
 
     # Find the files that appear only once
-    unique_files = find_unique_files(restructured_dict)
-    print("Unique files: ")
-    print(unique_files)
+    scanner.find_unique_files()
 
     # Find the files that appear more than twice
-    duplicate_files = find_duplicate_files(restructured_dict)
-    print("Duplicate files: ")
-    print(duplicate_files)
+    scanner.find_duplicate_files()
 
     # Write the dictionary to a json file
-    write_json(restructured_dict, "result.json")
+    scanner.write_json("result.json")
 
-    # Print the dictionary
-    print(restructured_dict)
+    # Print the results
+    scanner.print_results()
