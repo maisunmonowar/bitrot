@@ -7,20 +7,31 @@ Python script to
 5. list the file paths
 6. store them in a dictionary'''
 
+# %%
 import os
 import hashlib
 import json
 import sys
 import argparse
 
+# %%
 class FileScanner:
     def __init__(self, path):
         self.path = path
-        self.file_list = []
+        self.file_list = [] # list of all files found in the walk. 
+        
         self.file_dict = {}
+        # { 'file in the file_list': {
+        #                               'size': size of the file,
+        #                               'checksum': checksum of the file,
+        #                               'path': path of the file}
+
         self.restructured_dict = {}
-        self.unique_files = []
-        self.duplicate_files = []
+        # { 'checksum': [
+        #                   {'fullpath': str path of the file, 'size': int size of the file}]
+        
+        self.unique_files = [] # list of files that appear only once. checksum value.        
+        self.duplicate_files = [] # list of files that appear more than twice. checksum value.
 
     def scan_dir(self):
         print("Scanning directory: " + self.path)
@@ -54,41 +65,39 @@ class FileScanner:
         for file in self.file_dict:
             checksum = self.file_dict[file]['checksum']
             if checksum in self.restructured_dict:
-                self.restructured_dict[checksum]['details'].append((self.file_dict[file]['path'], self.file_dict[file]['size']))
+                self.restructured_dict.get(checksum).append({'fullpath': self.file_dict[file]['path'], 'size': self.file_dict[file]['size']})
             else:
-                self.restructured_dict[checksum] = {
-                    'details': [(self.file_dict[file]['path'], self.file_dict[file]['size'])]
-                }
+                self.restructured_dict[checksum] = [{'fullpath': self.file_dict[file]['path'], 'size': self.file_dict[file]['size']}]
+            print(self.restructured_dict)
 
     def find_unique_files(self):
             for checksum in self.restructured_dict:
-                if len(self.restructured_dict[checksum]['details']) == 1:
-                    self.unique_files.append(self.restructured_dict[checksum]['details'][0])
+                if len(self.restructured_dict[checksum]) == 1:
+                    self.unique_files.append(checksum)
        
-
     def find_duplicate_files(self):
-        for checksum in self.restructured_dict:
-            if len(self.restructured_dict[checksum]['details']) > 2:
-                self.duplicate_files.append(self.restructured_dict[checksum]['details'])
+        '''
+        Defination of duplicate files:
+        more than 2 files with same checksum'''
 
-    
-   
-    
+        for checksum in self.restructured_dict:
+            if len(self.restructured_dict[checksum]) > 2:
+                self.duplicate_files.append(checksum)
+
     def display_unique_files(self):
-         for itemss in self.unique_files:
-            print(itemss[0], end= "\t")
-            print(itemss[1])
+        print("Unique files:")
+        for checksumValue in self.unique_files:
+            print(self.restructured_dict[checksumValue][0]['fullpath'])
     
-   
     def display_duplicate_files(self):
         print("Duplicate files:")
-        for files in self.duplicate_files:
-            print(f"File: {files[0][0]}")
-            for file in files:
-                print(f"\tPath: {file[0]}", end= " ")
-                print(f"\tSize: {file[1]} bytes")
-            print("\n")
+        for checksumValue in self.duplicate_files:
+            print("--")
+            for file in self.restructured_dict[checksumValue]:
+                print(file['fullpath'])
+            print("--")
 
+# %%
 if __name__ == "__main__":
     # Parse the command line arguments
     parser = argparse.ArgumentParser()
@@ -100,28 +109,40 @@ if __name__ == "__main__":
         parser.print_help()
         sys.exit(1)
 
+    # %%
+    scanner = FileScanner("target")
+    # %%
     # Create a FileScanner object
     scanner = FileScanner(args.path)
 
+    # %%
     # Scan the directory recursively
     scanner.scan_dir()
 
+    # %%
     # Create a dictionary of files, file sizes, checksums and paths
     scanner.create_dict()
 
+    # %%
     # Restructure the dictionary
     scanner.restructure_dict()
 
+    # %%
     # Find the files that appear only once
     scanner.find_unique_files()
 
+    # %%
     # Find the files that appear more than twice
     scanner.find_duplicate_files()
 
+    # %%
     # Write the dictionary to a json file
     scanner.write_json("result.json")
 
+    # %%
     # Print the results
     scanner.display_duplicate_files()
     print("\n")
     scanner.display_unique_files()
+
+# %%
