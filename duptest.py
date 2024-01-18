@@ -18,26 +18,16 @@ import argparse
 class FileScanner:
     def __init__(self, path):
         self.path = path
-        self.file_list = [] # list of all files found in the walk. 
         
-        self.file_dict = {}
-        # { 'file in the file_list': {
-        #                               'size': size of the file,
-        #                               'checksum': checksum of the file,
-        #                               'path': path of the file}
-
         self.restructured_dict = {}
         # { 'checksum': [
         #                   {'fullpath': str path of the file, 'size': int size of the file}]
         
-        self.unique_files = [] # list of files that appear only once. checksum value.        
-        self.duplicate_files = [] # list of files that appear more than twice. checksum value.
-
     def scan_dir(self):
         print("Scanning directory: " + self.path)
         for root, dirs, files in os.walk(self.path):
-            for file in files:
-                self.file_list.append(os.path.join(root, file))
+            for item in files:
+                yield os.path.abspath(os.path.join(root, item))
 
     def checksum(self, file):
         sha256_hash = hashlib.sha256()
@@ -47,11 +37,12 @@ class FileScanner:
         return sha256_hash.hexdigest()
 
     def create_dict(self):
-        for file in self.file_list:
-            self.file_dict[file] = {}
-            self.file_dict[file]['size'] = os.path.getsize(file)
-            self.file_dict[file]['checksum'] = self.checksum(file)
-            self.file_dict[file]['path'] = file
+        for filepath in self.scan_dir():
+            checksum = self.checksum(filepath)
+            if checksum in self.restructured_dict:
+                self.restructured_dict.get(checksum).append({'fullpath': filepath, 'size': os.path.getsize(filepath)})
+            else:
+                self.restructured_dict[checksum] = [{'fullpath': filepath, 'size': os.path.getsize(filepath)}]
 
     def write_json(self, json_file):
         with open(json_file, 'w') as f:
@@ -73,7 +64,7 @@ class FileScanner:
     def find_unique_files(self):
             for checksum in self.restructured_dict:
                 if len(self.restructured_dict[checksum]) == 1:
-                    self.unique_files.append(checksum)
+                    yield checksum
        
     def find_duplicate_files(self):
         '''
@@ -82,16 +73,16 @@ class FileScanner:
 
         for checksum in self.restructured_dict:
             if len(self.restructured_dict[checksum]) > 2:
-                self.duplicate_files.append(checksum)
+                yield checksum
 
     def display_unique_files(self):
         print("Unique files:")
-        for checksumValue in self.unique_files:
+        for checksumValue in self.find_unique_files():
             print(self.restructured_dict[checksumValue][0]['fullpath'])
     
     def display_duplicate_files(self):
         print("Duplicate files:")
-        for checksumValue in self.duplicate_files:
+        for checksumValue in self.find_duplicate_files():
             print("--")
             for file in self.restructured_dict[checksumValue]:
                 print(file['fullpath'])
@@ -116,24 +107,8 @@ if __name__ == "__main__":
     scanner = FileScanner(args.path)
 
     # %%
-    # Scan the directory recursively
-    scanner.scan_dir()
-
-    # %%
     # Create a dictionary of files, file sizes, checksums and paths
     scanner.create_dict()
-
-    # %%
-    # Restructure the dictionary
-    scanner.restructure_dict()
-
-    # %%
-    # Find the files that appear only once
-    scanner.find_unique_files()
-
-    # %%
-    # Find the files that appear more than twice
-    scanner.find_duplicate_files()
 
     # %%
     # Write the dictionary to a json file
