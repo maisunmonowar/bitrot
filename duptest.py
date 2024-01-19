@@ -21,12 +21,24 @@ class FileScanner:
         
         self.restructured_dict = {}
         # { 'checksum': [
-        #                   {'fullpath': str path of the file, 'size': int size of the file}]
-        
+        #      {'fullpath': str path of the file, 
+        #       'size': int size of the file}]
+
+        self.skip_files = ['DS_Store', 'Thumbs.db', 'desktop.ini']
+        self.skip_extensions = ['lnk', 'url']
+
     def scan_dir(self):
         print("Scanning directory: " + self.path)
         for root, dirs, files in os.walk(self.path):
             for item in files:
+                if item in self.skip_files:
+                    print("Skipping file: " + item)
+                    continue
+                
+                if os.path.basename(item).split('.')[-1] in self.skip_extensions:
+                    print("Skipping file: " + item)
+                    continue
+                
                 yield os.path.abspath(os.path.join(root, item))
 
     def checksum(self, file):
@@ -50,7 +62,7 @@ class FileScanner:
 
     def read_json(self, json_file):
         with open(json_file, 'r') as f:
-            self.file_dict = json.load(f)
+            self.restructured_dict = json.load(f)
 
     def restructure_dict(self):
         for file in self.file_dict:
@@ -103,16 +115,19 @@ if __name__ == "__main__":
     # %%
     scanner = FileScanner("target")
     # %%
+    scanner = FileScanner("target2")
+    # %%
     # Create a FileScanner object
     scanner = FileScanner(args.path)
-
+    # %%
+    scanner.read_json("filelist.json")
     # %%
     # Create a dictionary of files, file sizes, checksums and paths
     scanner.create_dict()
 
     # %%
     # Write the dictionary to a json file
-    scanner.write_json("result.json")
+    scanner.write_json("filelist.json")
 
     # %%
     # Print the results
