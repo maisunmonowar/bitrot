@@ -5,7 +5,15 @@ Python script to
 3. list the file sizes
 4. list the file checksums
 5. list the file paths
-6. store them in a dictionary'''
+6. store them in a dictionary
+
+Goal of this script:
+Find the files which have more that 2 copies. >> So you can save disk space.
+Find the files which have only 1 copy. >> So you can duplicate them for redundancy.
+
+Since I have multiple drives and multiple PC, this script is to make sure 
+I have all the data where I want it to be. 
+'''
 
 # %%
 import os
