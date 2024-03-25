@@ -25,7 +25,7 @@ import argparse
 # %%
 class FileScanner:
     def __init__(self, path, debugFlag=False, verboseFlag=False):
-        self.path = path
+        self.path = os.path.abspath(path)
         
         self.restructured_dict = {}
         # { 'checksum': [
