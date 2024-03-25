@@ -218,18 +218,26 @@ class FileScanner:
                 except TypeError:
                     continue
             print("--")
+    def cleanup_json(self):
+        # check self.restructured_dict. if the file no longer exists, remove it from the dictionary
+        tempDict = self.restructured_dict
+        for checksum in tempDict.keys():
+            for file in tempDict[checksum]:
+                if not os.path.exists(file['fullpath']):
+                    self.restructured_dict[checksum].remove(file)
 
 # %%
 if __name__ == "__main__":
     # Parse the command line arguments
     parser = argparse.ArgumentParser()
     parser.add_argument('-p', '--path', help="Path to the directory to be scanned", required=True)
-    parser.add_argument('-u', '--unique', help="Display unique files", action="store_true")
-    parser.add_argument('-c', '--duplicate', help="Display duplicate files", action="store_true")
-    parser.add_argument('-b', '--bitrot', help="Display bitrot files", action="store_true")
+    parser.add_argument('-u', '--displayUnique', help="Display unique files", action="store_true")
+    parser.add_argument('-c', '--displayDuplicate', help="Display duplicate files", action="store_true")
+    parser.add_argument('-b', '--checkBitrot', help="Display bitrot files", action="store_true")
     parser.add_argument('-d', '--debugMode', help="Enable debug mode. Logs more details.", action="store_true")
     parser.add_argument('-v', '--verboseMode', help="Enable verbose mode. Prints more details.", action="store_true")
     parser.add_argument('-j', '--updateJson', help="Update the json file", action="store_true")
+    parser.add_argument('-a', '--deleteDuplicate', help='Assisted duplicate cleanup', action='store_true')
 
     args = parser.parse_args()
 
@@ -245,25 +253,30 @@ if __name__ == "__main__":
     # Create a FileScanner object
     scanner = FileScanner(args.path, debugFlag=args.debugMode, verboseFlag=args.verboseMode)
     # %%
-    scanner.read_json("filelist.json") # It doesn't happen auto. so don't forget it. 
+    scanner.read_json("filelist.json", "extlist.json") # It doesn't happen auto. so don't forget it. 
     # %%
     # Create a dictionary of files, file sizes, checksums and paths
     scanner.create_dict() # Execute after read_json(). Provided you have a json file from past run. 
+    # Create dictionary will create only for provided path. If you read_json() before, 
+    # it will append to the existing dictionary.
 
-    # %%
     # Write the dictionary to a json file
     if args.updateJson:
-        scanner.write_json("filelist.json")
+        # %%
+        scanner.cleanup_json()
+        scanner.write_json("filelist.json", "extlist.json")
 
     # %%
     # Print the results
-    if args.unique:
+    if args.displayUnique:
+        # %%
         scanner.display_unique_files()
-    if args.duplicate:
+    if args.displayDuplicate:
+        # %%
         scanner.display_duplicate_files()
 
     # Bitrot
-    if args.bitrot:
+    if args.checkBitrot:
         # %%
         for filepath in scanner.scan_dir():
             resultBool, resultDict = scanner.isItRotten(filepath)
@@ -274,6 +287,26 @@ if __name__ == "__main__":
                         print(checksum, end= " ")
                         print(file['size'], end= "\t")
                         print(file['fullpath'])
+    # Assisted cleanup. Deletes duplicate files in a directory. 
+    if args.deleteDuplicate:
+        print("Assisted cleanup")
+        # %%
+        for checksum in scanner.find_duplicate_files():
+            for file in scanner.restructured_dict[checksum]:
+                try:
+                    # print(checksum, end= " ")
+                    # print(file['size'], end= "\t")
+                    # print(file['fullpath'])
+                    # figureout basepath
+                    fullpath = file['fullpath']
+                    basepath = os.path.dirname(fullpath)
+                    # if basepath == self.path delete the file
+                    if basepath == scanner.path:
+                        print("Deleting: " + fullpath)
+                        os.remove(fullpath)        
+                except TypeError:
+                    continue
+        
     # %%
     exit(0)
 
