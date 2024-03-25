@@ -84,6 +84,9 @@ class FileScanner:
         return sha256_hash.hexdigest()
 
     def create_dict(self):
+        ''' It'll read the target directory. 
+        It'll create a dictionary of the files in the directory.'''
+
         for filepath in self.scan_dir():
             checksum = self.checksum(filepath)
             if checksum in self.restructured_dict:
@@ -98,25 +101,31 @@ class FileScanner:
             else:
                 self.restructured_dict[checksum] = [{'fullpath': filepath, 'size': os.path.getsize(filepath)}]
 
-    def write_json(self, json_file):
-        self.restructured_dict["skip_files"] = self.skip_files
-        self.restructured_dict["skip_extensions"] = self.skip_extensions
-        self.restructured_dict["extensions_of_interest"] = self.extensions_of_interest
-        with open(json_file, 'w') as f:
+    def write_json(self, json_filelist, json_extlist):
+        with open(json_extlist, 'w') as f:
+            json.dump({"skip_files": self.skip_files, "skip_extensions": self.skip_extensions, "extensions_of_interest": self.extensions_of_interest}, f, indent=4)
+        
+        with open(json_filelist, 'w') as f:
             json.dump(self.restructured_dict, f, indent=4)
 
-    def read_json(self, json_file):
+    def read_json(self, json_filelist, json_extlist):
         try:
-            with open(json_file, 'r') as f:
-                self.restructured_dict = json.load(f)
-            self.skip_files = self.restructured_dict.get("skip_files", [])
-            self.skip_extensions = self.restructured_dict.get("skip_extensions", [])
-            self.extensions_of_interest = self.restructured_dict.get("extensions_of_interest", [])
+            with open(json_extlist, 'r') as f:
+                temp_dict = json.load(f)
+            self.skip_files = temp_dict.get("skip_files", [])
+            self.skip_extensions = temp_dict.get("skip_extensions", [])
+            self.extensions_of_interest = temp_dict.get("extensions_of_interest", [])
         except FileNotFoundError:
             print("First run it must be.")
             self.skip_files = []
             self.skip_extensions = []
             self.extensions_of_interest = []
+        
+        try:
+            with open(json_filelist, 'r') as f:
+                self.restructured_dict = json.load(f)
+        except FileNotFoundError:
+            print("First run it must be.")
             self.restructured_dict = {}
     
     def isItRotten(self, filepath):
@@ -214,7 +223,7 @@ class FileScanner:
 if __name__ == "__main__":
     # Parse the command line arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('-p', '--path', help="Path to the directory to be scanned")
+    parser.add_argument('-p', '--path', help="Path to the directory to be scanned", required=True)
     parser.add_argument('-u', '--unique', help="Display unique files", action="store_true")
     parser.add_argument('-c', '--duplicate', help="Display duplicate files", action="store_true")
     parser.add_argument('-b', '--bitrot', help="Display bitrot files", action="store_true")
@@ -231,16 +240,15 @@ if __name__ == "__main__":
 
     # %%
     scanner = FileScanner("target")
-    # %%
-    scanner = FileScanner("target2")
+
     # %%
     # Create a FileScanner object
     scanner = FileScanner(args.path, debugFlag=args.debugMode, verboseFlag=args.verboseMode)
     # %%
-    scanner.read_json("filelist.json")
+    scanner.read_json("filelist.json") # It doesn't happen auto. so don't forget it. 
     # %%
     # Create a dictionary of files, file sizes, checksums and paths
-    scanner.create_dict()
+    scanner.create_dict() # Execute after read_json(). Provided you have a json file from past run. 
 
     # %%
     # Write the dictionary to a json file
@@ -254,9 +262,9 @@ if __name__ == "__main__":
     if args.duplicate:
         scanner.display_duplicate_files()
 
-    # %%
     # Bitrot
     if args.bitrot:
+        # %%
         for filepath in scanner.scan_dir():
             resultBool, resultDict = scanner.isItRotten(filepath)
             if resultBool:
