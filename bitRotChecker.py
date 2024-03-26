@@ -173,12 +173,57 @@ class FileScanner:
        
     def find_duplicate_files(self):
         '''
-        Defination of duplicate files:
-        more than 2 files with same checksum'''
+        Definition of duplicate files:
+        1. Maximum of 2 copies of the same file in a single physical hard drive.
+        2. Exactly 3 copies of the same file in 2 separate physical storage media.
 
+        Example:
+        Portable HDD Partition A: /media/maisun/backup-2021-1/
+        Portable HDD Partition B: /media/maisun/backup-2012-2/
+        '''
+
+        duplicate_files = []
         for checksum in self.restructured_dict:
-            if len(self.restructured_dict[checksum]) > 2:
-                yield checksum
+            file_copies = self.restructured_dict[checksum]
+            num_copies = len(file_copies)
+
+            # Check if there are more than 2 copies in a single physical hard drive
+            if num_copies > 2 and self.is_same_physical_drive(file_copies):
+                duplicate_files.append(checksum)
+
+            # Check if there are exactly 3 copies in 2 separate physical storage media
+            if num_copies > 3 and self.is_different_physical_drives(file_copies):
+                duplicate_files.append(checksum)
+
+        return duplicate_files
+
+    def is_same_physical_drive(self, file_copies):
+        '''
+        Check if all file copies are in the same physical hard drive.
+        '''
+        drives = set()
+        for file in file_copies:
+            drive = self.get_physical_drive(file['fullpath'])
+            drives.add(drive)
+        return len(drives) == 1
+
+    def is_different_physical_drives(self, file_copies):
+        '''
+        Check if file copies are in different physical storage media.
+        '''
+        drives = set()
+        for file in file_copies:
+            drive = self.get_physical_drive(file['fullpath'])
+            drives.add(drive)
+        return len(drives) >= 2
+
+    def get_physical_drive(self, filepath):
+        '''
+        Get the physical drive name from the file path.
+        '''
+        drive = os.path.dirname(filepath)
+        return drive
+
     
     def create_dosier(self, filepath):
         '''
