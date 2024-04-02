@@ -54,6 +54,16 @@ class FileScanner:
                         print("No dot. Skipping: " + item)
                     continue
 
+                if len(item.split('.')) > 2:
+                    if self.verboseMode:
+                        print("More than one dot. Skipping: " + item)
+                    continue
+
+                if len(item.split('.')[-1]) > 4:
+                    if self.verboseMode:
+                        print("Extension too long. Skipping: " + item)
+                    continue
+
                 if item in self.skip_files:
                     if self.verboseMode:
                         print("Skipping file: " + item)
@@ -77,6 +87,8 @@ class FileScanner:
                 yield os.path.abspath(os.path.join(root, item))
 
     def checksum(self, file):
+        if self.verboseMode:
+            print("Calculating checksum for: " + file)
         sha256_hash = hashlib.sha256()
         with open(file, "rb") as f:
             for byte_block in iter(lambda: f.read(4096), b""):
