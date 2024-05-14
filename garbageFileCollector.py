@@ -43,14 +43,17 @@ class FileDeleter:
             for file in files:
                 filepath = os.path.join(root, file)
                 file_info = self.get_file_info(filepath)
-                if all(f['name'] == file_info['name'] and f['size'] == file_info['size'] and f['checksum'] == file_info['checksum'] for f in self.delete_list):
-                    files_to_delete.append(filepath)
+                for f in self.delete_list:
+                    if f['name'] == file_info['name']:
+                        if f['size'] == file_info['size']:
+                            if f['checksum'] == file_info['checksum']:
+                                files_to_delete.append(filepath)
 
         print(f"We found {len(files_to_delete)} files that should be deleted according to the provided json list.")
         confirm = input("Are you sure you want to continue? y/n: ")
         if confirm.lower() == 'y':
             for filepath in files_to_delete:
-                print(f"Deleting {filepath}")
+                print(f"Deleting \t{os.path.basename(filepath)} \tfrom \t{os.path.dirname(filepath)}")
                 os.remove(filepath)
        
 if __name__ == "__main__":
