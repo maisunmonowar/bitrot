@@ -43,10 +43,10 @@ class FileDeleter:
             for file in files:
                 filepath = os.path.join(root, file)
                 file_info = self.get_file_info(filepath)
-                if any(f['name'] == file_info['name'] and f['size'] == file_info['size'] and f['checksum'] == file_info['checksum'] for f in self.delete_list):
+                if all(f['name'] == file_info['name'] and f['size'] == file_info['size'] and f['checksum'] == file_info['checksum'] for f in self.delete_list):
                     files_to_delete.append(filepath)
 
-        print(f"We found {len(files_to_delete)} files that should be deleted according to provided json list.")
+        print(f"We found {len(files_to_delete)} files that should be deleted according to the provided json list.")
         confirm = input("Are you sure you want to continue? y/n: ")
         if confirm.lower() == 'y':
             for filepath in files_to_delete:
@@ -55,19 +55,19 @@ class FileDeleter:
        
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Manage and delete files.')
-    parser.add_argument('--add-file', help='Add a file to the delete list.')
-    parser.add_argument('--add-folder', help='Add all files in a folder to the delete list.')
-    parser.add_argument('--delete', help='Delete all files in a folder that are in the delete list.')
+    parser.add_argument('-a', '--add', help='Add a file to the delete list.')
+    parser.add_argument('-d', '--addFolder', help='Add all files in a folder to the delete list.')
+    parser.add_argument('-r', '--remove', help='Delete all files in a folder that are in the delete list.')
     args = parser.parse_args()
 
     deleter = FileDeleter("delete_list.json")
 
-    if args.add_file:
-        deleter.add_file_to_delete_list(args.add_file)
-    if args.add_folder:
-        deleter.add_folder_to_delete_list(args.add_folder)
-    if args.delete:
-        folderpath = os.path.abspath(args.delete)
+    if args.add:
+        deleter.add_file_to_delete_list(args.add)
+    if args.addFolder:
+        deleter.add_folder_to_delete_list(args.addFolder)
+    if args.remove:
+        folderpath = os.path.abspath(args.remove)
         deleter.delete_files(folderpath)
 
     deleter.save_delete_list()
