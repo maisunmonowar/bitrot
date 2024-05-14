@@ -1,0 +1,4 @@
+This file is meant to have 3 copies. 
+one in dir1
+two in dir2
+and anywhere else. 
