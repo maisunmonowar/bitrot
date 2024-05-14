@@ -21,14 +21,17 @@ class FileDeleter:
 
     def add_file_to_delete_list(self, filepath):
         file_info = self.get_file_info(filepath)
-        self.delete_list.append(file_info)
+        if file_info not in self.delete_list:  # Check if file_info already exists in delete_list
+            self.delete_list.append(file_info)
 
     def add_folder_to_delete_list(self, folderpath):
-        for root, dirs, files in os.walk(folderpath):
+        folderpath = os.path.abspath(folderpath)  # Convert the folder path to absolute path
+        for root, _, files in os.walk(folderpath):  # Remove the unused "dirs" variable
             for file in files:
                 filepath = os.path.join(root, file)
                 file_info = self.get_file_info(filepath)
-                self.delete_list.append(file_info)
+                if file_info not in self.delete_list:  # Check if file_info already exists in delete_list
+                    self.delete_list.append(file_info)
 
     def save_delete_list(self):
         with open(self.json_file, 'w') as f:
@@ -47,10 +50,9 @@ class FileDeleter:
         confirm = input("Are you sure you want to continue? y/n: ")
         if confirm.lower() == 'y':
             for filepath in files_to_delete:
+                print(f"Deleting {filepath}")
                 os.remove(filepath)
-                file_info = self.get_file_info(filepath)
-                self.delete_list = [f for f in self.delete_list if not (f['name'] == file_info['name'] and f['size'] == file_info['size'] and f['checksum'] == file_info['checksum'])]
-            self.save_delete_list()
+       
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Manage and delete files.')
     parser.add_argument('--add-file', help='Add a file to the delete list.')
@@ -65,6 +67,7 @@ if __name__ == "__main__":
     if args.add_folder:
         deleter.add_folder_to_delete_list(args.add_folder)
     if args.delete:
-        deleter.delete_files(args.delete)
+        folderpath = os.path.abspath(args.delete)
+        deleter.delete_files(folderpath)
 
     deleter.save_delete_list()
