@@ -23,8 +23,10 @@ class FileDeleter:
         file_info = self.get_file_info(filepath)
         if file_info not in self.delete_list:  # Check if file_info already exists in delete_list
             self.delete_list.append(file_info)
+            print(f"Added {filepath}")
 
     def add_folder_to_delete_list(self, folderpath):
+        previous_len = len(self.delete_list)
         folderpath = os.path.abspath(folderpath)  # Convert the folder path to absolute path
         for root, _, files in os.walk(folderpath):  # Remove the unused "dirs" variable
             for file in files:
@@ -32,6 +34,10 @@ class FileDeleter:
                 file_info = self.get_file_info(filepath)
                 if file_info not in self.delete_list:  # Check if file_info already exists in delete_list
                     self.delete_list.append(file_info)
+
+        new_len = len(self.delete_list)
+        d = new_len - previous_len
+        print(f"Added {d} files to the list.")
 
     def save_delete_list(self):
         with open(self.json_file, 'w') as f:
