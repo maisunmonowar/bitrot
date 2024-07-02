@@ -37,7 +37,7 @@ class FileDeleter:
         with open(self.json_file, 'w') as f:
             json.dump(self.delete_list, f, indent=4)
 
-    def delete_files(self, folderpath):
+    def cleanup_folder(self, folderpath):
         files_to_delete = []
         for root, dirs, files in os.walk(folderpath):
             for file in files:
@@ -50,6 +50,8 @@ class FileDeleter:
                                 files_to_delete.append(filepath)
 
         print(f"We found {len(files_to_delete)} files that should be deleted according to the provided json list.")
+        if len(files_to_delete) == 0:
+            return 0 
         confirm = input("Are you sure you want to continue? y/n: ")
         if confirm.lower() == 'y':
             for filepath in files_to_delete:
@@ -60,7 +62,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Manage and delete files.')
     parser.add_argument('-a', '--add', help='Add a file to the delete list.')
     parser.add_argument('-d', '--addFolder', help='Add all files in a folder to the delete list.')
-    parser.add_argument('-r', '--remove', help='Delete all files in a folder that are in the delete list.')
+    parser.add_argument('-r', '--remove', help='Delete all files in a folder. The files will forever be marked as garbage.')
+    parser.add_argument('-c', '--cleanup', help='Make sure there is no garbage in the folder. ')
     args = parser.parse_args()
 
     deleter = FileDeleter("delete_list.json")
@@ -71,6 +74,10 @@ if __name__ == "__main__":
         deleter.add_folder_to_delete_list(args.addFolder)
     if args.remove:
         folderpath = os.path.abspath(args.remove)
-        deleter.delete_files(folderpath)
+        deleter.add_folder_to_delete_list(folderpath=folderpath)
+        deleter.cleanup_folder(folderpath)
+    if args.cleanup:
+        folderpath = os.path.abspath(args.cleanup)
+        deleter.cleanup_folder(folderpath)
 
     deleter.save_delete_list()
