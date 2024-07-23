@@ -1,9 +1,23 @@
 # Background
+
+BIT ROT
 Although bit rot is not so common nowadays, it doesn't hurt to create backup copies of your super important files. Your image files maybe be not so vulnerable to single bit filp, but how about your private keys? How do you detect your private keys suffered a data corruption?
+
+FILE MANAGEMENT
+Ideally, you should follow a 3 2 1 backup policy. Maybe 2 NAS syncing overnight, with weekly backup to the offsite location. But in reality who has that money and time. So I use this tool to assist me. Scanning for duplicate files. Scanning for files that are only single copy. 
+
 # Goal
+
 Repackage super important file so that you can recover them from partial data corruption. 
 
+Make sure no important file has only single copy. 
+
+Make sure you don't have more that 3 copies of the same file in your collection. 
+
+Make sure that you don't have more than 2 copies of the same file on a same drive. 
+
 # Setup
+
 The whole thing relies on Mr. Tsiodras's implementation of rsbep packaging. The idea is, the file should be able to self recover from few data corruption. You can read more here, https://www.thanassis.space/rsbep.html. 
 
 First install Mr. Tsiodras's custom version of rsbep, 
@@ -46,6 +60,13 @@ Run
 ```
 melt.sh foo.bar.frozen > foo_recovered.bar
 ```
+
+# Scan and update file hash
+
+# Add files to delete list
+
+# Delete the files which are in the 'list'
+
 
 # Limitation
 Copying pasting the 3 files everytime is a hassle. I'm working on something better. 
