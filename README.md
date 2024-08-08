@@ -78,7 +78,10 @@ melt.sh foo.bar.frozen > foo_recovered.bar
 ## Assited duplicate deleter
 
 There maybe a case, where you know you successfully backedup files. but this folder has duplicate files. 
-use `python3 bitRotChecker.py --path /to/target/folder --deleteDuplicate`
+use `python3 bitRotChecker.py --path /to/target/folder --deleteDuplicate --updateJson`
+
+ALWAYS USE UPDATEJSON ARG. 
+
 It will go through the folder. check against the json file, and if there is any file in the folder
 which is a duplicate of file already backup, it will be deleted. 
 
