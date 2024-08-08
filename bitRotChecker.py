@@ -317,11 +317,7 @@ if __name__ == "__main__":
     # Create dictionary will create only for provided path. If you read_json() before, 
     # it will append to the existing dictionary.
 
-    # Write the dictionary to a json file
-    if args.updateJson:
-        # %%
-        scanner.cleanup_json()
-        scanner.write_json("filelist.json", "extlist.json")
+    
 
     # %%
     # Print the results
@@ -363,7 +359,11 @@ if __name__ == "__main__":
                         os.remove(fullpath)        
                 except TypeError:
                     continue
-        
+    # Write the dictionary to a json file
+    if args.updateJson:
+        # %%
+        scanner.cleanup_json()
+        scanner.write_json("filelist.json", "extlist.json")    
     # %%
     exit(0)
 
