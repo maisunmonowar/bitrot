@@ -293,8 +293,8 @@ if __name__ == "__main__":
     parser.add_argument('-b', '--checkBitrot', help="Display bitrot files", action="store_true")
     parser.add_argument('-d', '--debugMode', help="Enable debug mode. Logs more details.", action="store_true")
     parser.add_argument('-v', '--verboseMode', help="Enable verbose mode. Prints more details.", action="store_true")
-    parser.add_argument('-j', '--updateJson', help="Update the json file", action="store_true")
-    parser.add_argument('-a', '--deleteDuplicate', help='Assisted duplicate cleanup', action='store_true')
+    parser.add_argument('-j', '--updateJson', help="Use it to store the progress to JSON file. Otherwise, all calculation in RAM.", action="store_true")
+    parser.add_argument('-a', '--deleteDuplicate', help='Assisted duplicate cleanup. If you think your provide path is the duplicate folder, it will delete all the duplicate file.', action='store_true')
 
     args = parser.parse_args()
 
