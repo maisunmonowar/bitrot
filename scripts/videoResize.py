@@ -1,55 +1,62 @@
 import os
-import subprocess
-import shutil
 import argparse
+import subprocess
+   
+def resizeVideo(fullpath):
+    print(f'this video file needs to be resized {os.path.basename(itemss)} at {os.path.dirname(itemss)}')
+    
+    
 
-def resize_media(input_path, output_path):
-    # Create the "deleteLater" folder if it doesn't exist
-    delete_later_folder = os.path.join(output_path, "deleteLater")
-    os.makedirs(delete_later_folder, exist_ok=True)
+def resizeImage(fullpath):
+    """Resizes an image based on the target resolution specified in the folder name.
 
-    # Walk through the input path
-    for root, dirs, files in os.walk(input_path):
-        for filename in files:
-            full_path = os.path.join(root, filename)
-            base_name, ext = os.path.splitext(filename)
+    Args:
+        fullpath (str): The full path to the image file.
+    """
 
-            # Check if it's an image or video
-            if ext.lower() in (".jpg", ".jpeg", ".png"):
-                # Get the folder name (e.g., "1024", "720p")
-                folder_name = os.path.basename(root)
-                try:
-                    size = int(folder_name)
-                except ValueError:
-                    continue  # Skip folders with non-integer names
+    target_path = os.path.dirname(fullpath)
+    target_resolution = int(os.path.basename(target_path))
+    target_name = f"{os.path.splitext(os.path.basename(fullpath))[0]}_{target_resolution}{os.path.splitext(fullpath)[1]}"
 
-                # Resize the image using ImageMagick
-                resized_filename = f"{base_name}_{size}px{ext}"
-                resized_path = os.path.join(root, resized_filename)
-                subprocess.run(["convert", full_path, "-resize", f"{size}x{size}", resized_path])
+    # Resize the image using ImageMagick (adjust the command as needed)
+    subprocess.run(["convert", fullpath, "-resize", f"{target_resolution}x{target_resolution}", target_path + "/" + target_name])
 
-                # Move the original file to "deleteLater"
-                shutil.move(full_path, os.path.join(delete_later_folder, filename))
-                print(f"Resized image: {resized_filename}")
-
-            elif ext.lower() in (".mp4", ".mkv", ".avi"):
-                # Get the resolution from the folder name (e.g., "720p")
-                folder_name = os.path.basename(root)
-                resolution = folder_name.lower()
-
-                # Resize the video using FFmpeg
-                resized_filename = f"{base_name}_{resolution}{ext}"
-                resized_path = os.path.join(root, resized_filename)
-                subprocess.run(["ffmpeg", "-i", full_path, "-vf", f"scale={resolution}", resized_path])
-
-                # Move the original file to "deleteLater"
-                shutil.move(full_path, os.path.join(delete_later_folder, filename))
-                print(f"Resized video: {resized_filename}")
-
+    # Move the original file to a "deleteLater" folder
+    move_original_file_to = os.path.join(target_path, "..", "deleteLater")
+    os.makedirs(move_original_file_to, exist_ok=True)
+    os.rename(fullpath, os.path.join(move_original_file_to, os.path.basename(fullpath)))
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Resize images and videos based on folder names")
-    parser.add_argument("input_folder", help="Path to the input folder containing media files")
-    parser.add_argument("output_folder", help="Path to the output folder for resized files")
+    parser.add_argument("-i", "--input_folder", help="Path to the input folder containing media files")
     args = parser.parse_args()
+    
+    imageResizeFolderNames = ["128", "256", "512", "1024", "2048"]
+    videoResizeFolderNames = ["240p", "360p", "720p", "1080p", "2k", "4k"]
 
-    resize_media(args.input_folder, args.output_folder)
+    imageToResize = []
+    videoToResize = []
+    # Walk through the input folder
+    for root, dirs, files in os.walk(args.input_folder):
+        for filename in files:
+            full_path = os.path.join(root, filename)
+
+            # Check if it's an image file
+            if filename.lower().endswith((".jpg", ".jpeg", ".png")):
+                imageToResize.append(os.path.join(root, filename))
+                
+            # Check if it's an video file
+            if filename.lower().endswith((".mp4", ".mkv", ".mov")):
+                videoToResize.append(os.path.join(root, filename))
+                
+    for itemss in imageToResize:
+        folderName = os.path.basename(os.path.dirname(itemss))
+        if folderName in imageResizeFolderNames:
+            resizeImage(itemss)
+    
+    print()
+    for itemss in videoToResize:
+        folderName = os.path.basename(os.path.dirname(itemss))
+        if folderName in videoResizeFolderNames:
+            resizeVideo(itemss)
+            
+        
