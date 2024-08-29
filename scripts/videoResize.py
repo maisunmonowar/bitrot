@@ -3,7 +3,23 @@ import argparse
 import subprocess
    
 def resizeVideo(fullpath):
-    print(f'this video file needs to be resized {os.path.basename(itemss)} at {os.path.dirname(itemss)}')
+    """Resizes a video based on the target resolution specified in the folder name.
+
+    Args:
+        fullpath (str): The full path to the video file.
+    """
+    target_path = os.path.dirname(fullpath)
+    target_resolution = os.path.basename(target_path)
+    target_name = f"{os.path.splitext(os.path.basename(fullpath))[0]}_{target_resolution}{os.path.splitext(fullpath)[1]}"
+
+    # Resize the video using FFmpeg (adjust the command as needed)
+    subprocess.run(["ffmpeg", "-i", fullpath, "-vf", f"scale=-1:{target_resolution[:-1]}", target_path + "/" + target_name])
+
+    # Move the original file to a "deleteLater" folder
+    move_original_file_to = os.path.join(target_path, "..", "deleteLater")
+    os.makedirs(move_original_file_to, exist_ok=True)
+    os.rename(fullpath, os.path.join(move_original_file_to, os.path.basename(fullpath)))
+
     
     
 
