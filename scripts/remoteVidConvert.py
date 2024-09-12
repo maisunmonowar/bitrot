@@ -4,6 +4,7 @@ import os
 import fnmatch
 import shutil
 import ffmpeg
+import subprocess
 
 def pathList_toconvert(filelist):
     for itemmss in filelist:
@@ -12,10 +13,22 @@ def pathList_toconvert(filelist):
         convert_video(itemmss, b)
         print()
 
+def get_available_encoder():
+    encoders = {
+        'h264_nvenc': 'NVIDIA NVENC',
+        'h264_qsv': 'Intel QuickSync',
+        'h264_amf': 'AMD VCE'
+    }
+    for encoder in encoders:
+        result = subprocess.run(['ffmpeg', '-hide_banner', '-h', f'encoder={encoder}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if 'Encoder' in result.stdout.decode() or 'Encoder' in result.stderr.decode():
+            return encoder
+    return 'libx264'  # Default to CPU encoding
+
 def convert_video(input_path, target_resolution):
     # Define the output path
     if not os.path.isfile(input_path):
-        print("asdfkajsd;lfkja;lsdkfj")
+        print("File not found.")
         exit(-1)
     dir_name, file_name = os.path.split(input_path)
     file_base, file_ext = os.path.splitext(file_name)
@@ -34,32 +47,36 @@ def convert_video(input_path, target_resolution):
     current_resolution = f"{height}p"
 
     # Determine if resizing is needed
-    if target_resolution != 'av1' and int(target_resolution[:-1]) <= int(current_resolution[:-1]):
-        print(f"No need to resize. Current resolution ({current_resolution}) is higher or equal to target resolution ({target_resolution}).")
+    try: 
+        if int(target_resolution[:-1]) > int(current_resolution[:-1]):
+            print(f"No need to resize. Current resolution ({current_resolution}) is higher or equal to target resolution ({target_resolution}).")
+            return
+    except ValueError as v:
         return
 
     # Set the target resolution
-    if target_resolution != 'av1':
+    if target_resolution != 'compress':
         target_height = int(target_resolution[:-1])
         target_width = int(width * (target_height / height))
     else:
         target_height = height
         target_width = width
 
+    # Detect available hardware encoder
+    encoder = get_available_encoder()
+
     # Convert or transcode the video
     try:
-        if target_resolution == 'av1':
-            ffmpeg.input(input_path).output(output_path, vcodec='libaom-av1', crf=20, cpu_used=4).run()
+        if target_resolution == 'compress':
+            ffmpeg.input(input_path).output(output_path, vcodec=encoder, crf=20).run()
         else:
-            ffmpeg.input(input_path).output(output_path, vf=f'scale={target_width}:{target_height}', vcodec='libaom-av1', crf=20, cpu_used=4).run()
+            ffmpeg.input(input_path).output(output_path, vf=f'scale={target_width}:{target_height}', vcodec=encoder, crf=20).run()
         
         # Move the original file to 'deletelater' directory
         shutil.move(input_path, os.path.join(delete_later_dir, file_name))
         print(f"Converted video saved to {output_path}. Original file moved to 'deletelater' directory.")
     except ffmpeg.Error as e:
         print(f"Error occurred: {e}")
-
-
 def find_video_files(directory):
     video_extensions = ['*.mp4', '*.avi', '*.mkv', '*.mov', '*.flv', '*.wmv', '*.webm']
     video_files = []
