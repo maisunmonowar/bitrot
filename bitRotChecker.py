@@ -22,6 +22,17 @@ import json
 import sys
 import argparse
 
+class filehash_storage:
+    def __init__(self, path):
+        self.path = os.path.abspath(path)
+        self.hash_dict = {}
+        # { 'file_basename': checksum}
+    
+    def __del__(self):
+        if self.hash_dict:
+            with open(os.path.join(self.path, "filehash.json"), "w") as f:
+                json.dump(self.hash_dict, f, indent=4)
+
 # %%
 class FileScanner:
     def __init__(self, path, debugFlag=False, verboseFlag=False):
@@ -31,6 +42,9 @@ class FileScanner:
         # { 'checksum': [
         #      {'fullpath': str path of the file, 
         #       'size': int size of the file}]
+
+        self.newly_hashed_files = {}
+        # {'c://path/to/dir': filehash_storage()}
 
         self.debugMode = debugFlag
         self.verboseMode = verboseFlag
@@ -63,6 +77,27 @@ class FileScanner:
                     if self.verboseMode:
                         print("Extension too long. Skipping: " + item)
                     continue
+                if item == "filehash.json":
+                    # Read this file and update self.restructured_dict
+                    filehash_path = os.path.join(root, item)
+                    try:
+                        with open(filehash_path, "r") as f:
+                            hash_dict = json.load(f)
+                        for filename, checksum in hash_dict.items():
+                            abs_path = os.path.abspath(os.path.join(root, filename))
+                            size = os.path.getsize(abs_path) if os.path.exists(abs_path) else None
+                            if size is not None:
+                                entry = {'fullpath': abs_path, 'size': size}
+                                if checksum in self.restructured_dict:
+                                    # Avoid duplicates
+                                    if not any(e['fullpath'] == abs_path for e in self.restructured_dict[checksum]):
+                                        self.restructured_dict[checksum].append(entry)
+                                else:
+                                    self.restructured_dict[checksum] = [entry]
+                    except Exception as e:
+                        if self.verboseMode:
+                            print(f"Failed to process {filehash_path}: {e}")
+                    continue
 
                 if item in self.skip_files:
                     if self.verboseMode:
@@ -93,7 +128,17 @@ class FileScanner:
         with open(file, "rb") as f:
             for byte_block in iter(lambda: f.read(4096), b""):
                 sha256_hash.update(byte_block)
-        return sha256_hash.hexdigest()
+        
+        this_file_dir = os.path.dirname(file)
+        this_file_basename = os.path.basename(file)
+        this_file_hash = sha256_hash.hexdigest()
+        if this_file_dir in self.newly_hashed_files:
+            self.newly_hashed_files[this_file_dir].hash_dict[this_file_basename] = this_file_hash
+        else:
+            self.newly_hashed_files[this_file_dir] = filehash_storage(this_file_dir)
+            self.newly_hashed_files[this_file_dir].hash_dict[this_file_basename] = this_file_hash
+
+        return this_file_hash
 
     def create_dict(self):
         ''' It'll read the target directory. 
@@ -275,6 +320,7 @@ class FileScanner:
                 except TypeError:
                     continue
             print("--")
+
     def cleanup_json(self):
         # check self.restructured_dict. if the file no longer exists, remove it from the dictionary
         tempDict = self.restructured_dict
@@ -366,74 +412,3 @@ if __name__ == "__main__":
         scanner.write_json("filelist.json", "extlist.json")    
     # %%
     exit(0)
-
-# %%
-path = "target"
-with open("filelist.json", 'r') as f:
-    restructured_dict = json.load(f)
-# %%
-filepath = "C:\\Users\\MaisunIbnMonowar\\Downloads\\gitrepo\\bitrot\\target\\dir1\\myfile.txt"
-filename = os.path.basename(filepath)
-# %%
-filepath = "C:\\Users\\MaisunIbnMonowar\\Downloads\\gitrepo\\bitrot\\target\\dir1\\ex\\test.txt"
-filename = os.path.basename(filepath)
-# %%
-
-# def find_possible_bitrot(restructured_dict):
-# Find the exact path in our restructured_dict
-subDict_fullpath = {}
-for checksum in restructured_dict.keys():
-    for file in restructured_dict[checksum]:
-        # if file is not a dictionary, skip it
-        if type(file) != dict:
-            continue
-        if file['fullpath'] == filepath:
-            # print("Found the file")
-            # print(file)
-            # print(checksum)
-            if checksum in subDict_fullpath:
-                subDict_fullpath[checksum].append(file)
-            else:
-                subDict_fullpath[checksum] = [file]
-subDict_filename = {}
-for checksum in restructured_dict:
-    for file in restructured_dict[checksum]:
-        # if file is not a dictionary, skip it
-        if type(file) != dict:
-            continue
-        thisFilename = os.path.basename(file['fullpath'])
-        if thisFilename == filename:
-            # print("Found the file")
-            # print(file)
-            # print(checksum)
-            if checksum in subDict_filename:
-                subDict_filename[checksum].append(file)
-            else:
-                subDict_filename[checksum] = [file]
-print(json.dumps(subDict_filename, indent=4))         
-# %%
-# Now we have to determine if filepath is rotten or not
-# we have subDict_filename 
-# So we need to filter subDict_filename. Only same filesize remains
-desired_size = os.path.getsize(filepath)
-for checksum in subDict_filename:
-    for file in subDict_filename[checksum]: # file is a dictionary
-        if file['size'] == desired_size:
-            print("keep this file")
-        else:
-            print("delete this file")
-            subDict_filename[checksum].remove(file)
-print(json.dumps(subDict_filename, indent=4))            
-            
-            
-# %%
-# remove key value pair from dictionary where value is empty list
-for key in list(subDict_filename.keys()):
-    if not subDict_filename[key]:
-        del subDict_filename[key]
-print(json.dumps(subDict_filename, indent=4))
-# %%
-if len(subDict_filename) > 1:
-    print("Possible bitrot")
-    print(json.dumps(subDict_filename, indent=4))
-# %%
