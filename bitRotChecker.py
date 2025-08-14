@@ -28,7 +28,7 @@ class filehash_storage:
         self.hash_dict = {}
         # { 'file_basename': checksum}
     
-    def __del__(self):
+    def savefile(self):
         if self.hash_dict:
             with open(os.path.join(self.path, "filehash.json"), "w") as f:
                 json.dump(self.hash_dict, f, indent=4)
@@ -409,6 +409,10 @@ if __name__ == "__main__":
     if args.updateJson:
         # %%
         scanner.cleanup_json()
-        scanner.write_json("filelist.json", "extlist.json")    
+        scanner.write_json("filelist.json", "extlist.json") 
+        for dir_filehash in scanner.newly_hashed_files:
+            scanner.newly_hashed_files[dir_filehash].savefile()
+    # %%
+    exit(0)
     # %%
     exit(0)
