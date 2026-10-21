@@ -16,9 +16,14 @@ Make sure you don't have more that 3 copies of the same file in your collection.
 
 Make sure that you don't have more than 2 copies of the same file on a same drive. 
 
+Help organize, index your data.
+
+Text / JSON heavy output as we want to use this scripts across platform and decades.
+
 # Setup
 
-The whole thing relies on Mr. Tsiodras's implementation of rsbep packaging. The idea is, the file should be able to self recover from few data corruption. You can read more here, https://www.thanassis.space/rsbep.html. 
+The whole thing started Mr. Tsiodras's implementation of rsbep packaging. The idea is, the file should be able to self recover from few data corruption. You can read more here, https://www.thanassis.space/rsbep.html. 
+Over the years, the scope of this repo has changed.
 
 First install Mr. Tsiodras's custom version of rsbep, 
 Download the source from, https://www.thanassis.space/rsbep-0.1.0-ttsiodras.tar.bz2

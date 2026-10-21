@@ -15,7 +15,7 @@ This document lists findings from the repository audit, covering edge cases, pot
   - Fix: Iterate over a copy of the list (e.g., `list(self.restructured_dict[checksum])` or using list comprehension) to perform deletions safely.
 
 - [ ] Invalid Physical Drive Logic (bitRotChecker.py)
-  - Bug: `get_physical_drive(filepath)` returns `os.path.dirname(filepath)` (the parent directory path) instead of the actual drive letter or mount point. Consequently, files in different folders on the same physical drive (e.g., `C:\FolderA` and `C:\FolderB`) are incorrectly treated as being on different physical drives.
+  - Bug: `get_physical_drive(filepath)` returns `os.path.dirname(filepath)` (the parent directory path) instead of the actual drive letter or mount point. Consequently, files in different folders on the same physical drive (e.g., `C:\FolderA` and `C:\FolderB`) are incorrectly treated as being on different physical drives. (Note: as a work around, I started storing everything in 'manual', 'manuam', manuan'.. folder. idea is, by checking the folder name, i'll be able to identify different storage media.)
   - Fix: On Windows, parse the drive letters (e.g., `os.path.splitdrive(filepath)[0]`). On Unix, parse the mount point.
 
 - [ ] Out of Memory Error on Large Files in garbageFileCollector.py
@@ -53,3 +53,28 @@ This document lists findings from the repository audit, covering edge cases, pot
 - [ ] Remove Dead and Duplicate Code
   - Improvement: In `bitRotChecker.py`, lines 353-354 instantiate `scanner` with the hardcoded `"target"` string, which is immediately overwritten by line 357. There are also duplicate `exit(0)` calls at the end of the script.
   - Fix: Clean up and refactor the `__main__` entry point.
+
+- [ ] Revise README.md
+
+- [ ] Everytime I come back to this directory, I keep forgeting how to actaully run these scripts. I don't know if it is the way the scripts are organized or the readme file. 
+
+- [ ] Add docstring on every module, class and functions. Help the future me.
+
+
+================================================================================
+3. Feature wish list
+================================================================================
+
+- [ ] currently, the script can identify if there are more than or less than 2 copies of a data. But it cannot assist the user to delete the duplicate data or to copy the data at risk.
+- [ ] currently, the JSON file filelist.json stores all the filenames and their location. but sometimes I need to find a specific data. such as, I'll take a photo of a birth certificate and store it in the photos directory. but the filename will be something like 20260101.jpg. I wish filelist.json would also hold a small description of the file. I could also be a new json file. maybe I could us LM studio, run a local server and use a local model as a one shot classifier?
+- [ ] If I end up using LM studio or similar local AI, there should be a config file pointing to the LLM API. 
+- [ ] Related to wish above, sometimes you need a little help to organize photos. like from one single photo you cannot tell that photo is one of many taken in a birthday party. before I setup a photo manager / organizer in my NAS, I need a helper script to organize / group photos in a folder.
+- [ ] Re-organize the repo as per PEP / convention.
+- [ ] Enable UV. Make this repo run as uv modules. such as 'uv run checkBitRot --arg --arg2'
+- [ ] Automaeted pytest. Right now we are manually running the script on a test folder and checking output manually.
+
+================================================================================
+4. things to validate
+================================================================================
+
+- [ ] Are we using hardware accelerated hashing functions? Most CPU now a days have hash hardware. better to use that. even if that means we cannot keep using the same hashing algo, that is fine. I really need this script to be fast. and efficient.
