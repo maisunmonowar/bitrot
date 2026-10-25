@@ -22,10 +22,45 @@ Text / JSON heavy output as we want to use this scripts across platform and deca
 
 # Setup
 
-The whole thing started Mr. Tsiodras's implementation of rsbep packaging. The idea is, the file should be able to self recover from few data corruption. You can read more here, https://www.thanassis.space/rsbep.html. 
-Over the years, the scope of this repo has changed.
+The recovery format began with Mr. Tsiodras's implementation of rsbep packaging.
+The project keeps its C format and engine while providing a Python CLI for
+cross-platform invocation.
 
-First install Mr. Tsiodras's custom version of rsbep, 
+## Recovery tools
+
+`rsbep_cli.py` provides a cross-platform Python command-line interface around the
+original C encoder. The GitHub Actions workflow builds native `rsbep` executables
+for Windows, macOS, and Linux; download the artifact for your platform and place
+the executable in the repository's `bin/` directory. Alternatively, build locally
+with a C compiler after initializing the submodule and applying the safety patch:
+
+```
+git submodule update --init rsbep-backup
+git apply patches/rsbep-safety.patch
+mkdir bin
+cc -O2 -std=gnu99 -o bin/rsbep rsbep-backup/src/rsbep.c rsbep-backup/src/rs.c
+```
+
+On Windows, use a MinGW-w64 toolchain such as MSYS2 and name the output
+`bin/rsbep.exe`.
+
+Encode and recover a file without Docker:
+
+```
+python rsbep_cli.py freeze important.file important.file.frozen
+python rsbep_cli.py melt important.file.frozen important.file.recovered
+```
+
+The wrapper checks the C program's exit status, rejects truncated streams, and
+only replaces an existing destination after a successful operation. The C code
+remains the recovery engine, preserving its format and performance. Reed-Solomon
+cannot guarantee detection of every possible miscorrection; keep independent
+backups.
+
+### Legacy C scripts
+
+The original scripts remain under `rsbep-backup/contrib/`. To build and use them
+directly, install Mr. Tsiodras's custom version of rsbep:
 Download the source from, https://www.thanassis.space/rsbep-0.1.0-ttsiodras.tar.bz2
 Extract the folder. 
 Then install by usual 
@@ -63,8 +98,10 @@ if you don't use --updateJson, additional calculation will happen in RAM and won
 
 If everything is ok, the terminal will be blank. If anyfile has been changed/corrupted since recording the hash, it'll show up. 
 
-## Recover the file
-To recover the file `foo.bar`, you must have `foo.bar.frozen`. 
+The `melt.sh` script can still be used in Docker.
+
+## Recover the file with the legacy C script
+To recover the file `foo.bar`, you must have `foo.bar.frozen`.
 Run 
 ```
 melt.sh foo.bar.frozen > foo_recovered.bar
