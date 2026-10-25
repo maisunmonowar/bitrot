@@ -28,15 +28,12 @@ jobs:
         include:
           - os: ubuntu-latest
             binary: bin/rsbep
-            shell: bash
             compiler: cc
           - os: macos-latest
             binary: bin/rsbep
-            shell: bash
             compiler: cc
           - os: windows-latest
             binary: bin/rsbep.exe
-            shell: msys2 {0}
             compiler: gcc
 
     steps:
@@ -59,11 +56,19 @@ jobs:
       - name: Apply recovery safety patch
         run: git apply patches/rsbep-safety.patch
 
-      - name: Build native executable
-        shell: ${{ matrix.shell }}
+      - name: Build native executable (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
         run: |
           mkdir -p bin
           ${{ matrix.compiler }} -O2 -std=gnu99 -o ${{ matrix.binary }} rsbep-backup/src/rsbep.c rsbep-backup/src/rs.c
+
+      - name: Build native executable (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          mkdir -p bin
+          gcc -O2 -std=gnu99 -o ${{ matrix.binary }} rsbep-backup/src/rsbep.c rsbep-backup/src/rs.c
 
       - name: Run tests
         run: python -m unittest discover -s tests -v
