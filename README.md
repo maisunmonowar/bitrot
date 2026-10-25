@@ -85,10 +85,15 @@ melt.sh foo.bar.frozen > foo_recovered.bar
 There maybe a case, where you know you successfully backedup files. but this folder has duplicate files. 
 use `python3 bitRotChecker.py --path /to/target/folder --deleteDuplicate --updateJson`
 
+This command is a dry run: it shows the exact paths planned for deletion and the
+copy retained for each checksum. Review the plan, then add `--confirmDelete` to
+execute it. Files outside the requested scan directory are never deleted, and
+cleanup aborts if it cannot verify a matching copy to retain.
+
 ALWAYS USE UPDATEJSON ARG. 
 
-It will go through the folder. check against the json file, and if there is any file in the folder
-which is a duplicate of file already backup, it will be deleted. 
+It will go through the folder and compare its files with the JSON registry.
+Only paths in the requested scan directory can be included in the deletion plan.
 
 Example, maybe you have a folder in the pendrive. Likely be be copied from backup drive. 
 
