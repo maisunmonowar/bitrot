@@ -114,6 +114,15 @@ index fef6cbe..6796861 100644
  	    }
  
  	    distribute(tr_buf, ec_buf, bep_size, rs_bsize, 1);
+@@ -246,7 +266,7 @@ int main(int argc, char *argv[])
+ 		long got =
+ 		    fread((ec_buf + i * rs_bsize), 1, rs_dsize, stdin);
+ 		if (got < rs_dsize) {
+-		    bzero((ec_buf + i * rs_bsize + got), rs_dsize - got);	//zero remaining data
++		    memset((ec_buf + i * rs_bsize + got), 0, rs_dsize - got);
+ 		}
+ 		//encode rs_dsize bytes of data, append Parity in row
+ 		rse32((ec_buf + i * rs_bsize),
 @@ -268,5 +288,7 @@ int main(int argc, char *argv[])
      if (ec_buf)
  	free(ec_buf);
