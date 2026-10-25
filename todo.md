@@ -4,7 +4,7 @@ This list is ordered by priority. Each item should be implemented as a focused c
 
 ## P0 — Data safety and recovery correctness
 
-- [ ] **Make duplicate cleanup preserve a safe copy** ([#8](https://github.com/maisunmonowar/bitrot/issues/8))
+- [x] **Make duplicate cleanup preserve a safe copy** ([#8](https://github.com/maisunmonowar/bitrot/issues/8))
   - Review the `--deleteDuplicate` flow in `bitRotChecker.py`.
   - Build and display an explicit deletion plan before deleting anything.
   - Never delete every copy of a checksum group; retain at least one copy and abort if the tool cannot determine a safe choice.
@@ -12,13 +12,13 @@ This list is ordered by priority. Each item should be implemented as a focused c
   - Default to dry-run or confirmation with the exact paths to be deleted.
   - Add tests proving that root-level and nested duplicates are handled safely and that at least one copy remains.
 
-- [ ] **Define whether the garbage list identifies paths or file contents** ([#9](https://github.com/maisunmonowar/bitrot/issues/9))
+- [x] **Define whether the garbage list identifies paths or file contents** ([#9](https://github.com/maisunmonowar/bitrot/issues/9))
   - Reconcile the README promise that `--add` marks only one file with `garbageFileCollector.py`, which currently matches by filename, size, and checksum and can therefore match identical files elsewhere.
   - Adopt path-specific marking as the default, or document and expose content-based matching as a separate explicit mode.
   - Ensure cleanup cannot silently expand a single-file request into deletion of other files.
   - Add tests for same-name identical files in different directories, renamed files, and folder-based marking.
 
-- [ ] **Make Reed–Solomon recovery failures explicit** ([#10](https://github.com/maisunmonowar/bitrot/issues/10))
+- [x] **Make Reed–Solomon recovery failures explicit** ([#10](https://github.com/maisunmonowar/bitrot/issues/10))
   - Fix the uncorrectable-failure counter in `rsbep-backup/src/rsbep.c`; ensure it increments the counter value rather than advancing the counter pointer.
   - Review decoder behavior for uncorrectable and truncated input so it does not report success or produce a success-shaped recovered file.
   - Propagate errors and exit statuses through the `melt.sh` pipeline.
@@ -33,7 +33,7 @@ This list is ordered by priority. Each item should be implemented as a focused c
   - Write examples for the allowed and disallowed cases, then implement tests for those cases.
   - Ensure the duplicate report and deletion workflow use the same policy.
 
-- [ ] **Identify storage volumes consistently**
+- [x] **Identify storage volumes consistently**
   - Replace `get_physical_drive()` behavior that currently treats a file’s parent directory as its drive.
   - Decide whether the policy is based on mounted volumes or physical devices; document platform-specific limitations.
   - Add tests showing that different folders on the same volume are treated consistently and that separate volumes are distinguished where supported.

@@ -46,6 +46,7 @@ class FileScanner:
         self.newly_hashed_files = {}
         # {'c://path/to/dir': filehash_storage()}
 
+        self.uncertain_volume_checksums = {}
         self.debugMode = debugFlag
         self.verboseMode = verboseFlag
 
@@ -232,26 +233,82 @@ class FileScanner:
                     yield checksum
        
     def find_duplicate_files(self):
-        """Return checksums with more than three copies or over two per drive."""
+        """Return checksums over the total-copy or per-volume limit."""
         duplicate_files = []
+        self.uncertain_volume_checksums = {}
         for checksum in self.restructured_dict:
             file_copies = self.restructured_dict[checksum]
-            copies_per_drive = {}
-            for file_copy in file_copies:
-                drive = self.get_physical_drive(file_copy["fullpath"])
-                copies_per_drive[drive] = copies_per_drive.get(drive, 0) + 1
+            if len(file_copies) <= 2:
+                continue
 
-            if len(file_copies) > 3 or any(count > 2 for count in copies_per_drive.values()):
+            copies_per_volume = {}
+            unknown_paths = []
+            for file_copy in file_copies:
+                filepath = file_copy["fullpath"]
+                volume = self.get_storage_volume(filepath)
+                if volume is None:
+                    unknown_paths.append(filepath)
+                    continue
+                copies_per_volume[volume] = copies_per_volume.get(volume, 0) + 1
+
+            if unknown_paths:
+                self.uncertain_volume_checksums[checksum] = unknown_paths
+
+            if len(file_copies) > 3 or (
+                not unknown_paths and any(count > 2 for count in copies_per_volume.values())
+            ):
                 duplicate_files.append(checksum)
 
         return duplicate_files
 
-    def get_physical_drive(self, filepath):
-        '''
-        Get the physical drive name from the file path.
-        '''
-        drive = os.path.dirname(filepath)
-        return drive
+    def get_storage_volume(self, filepath):
+        """Return a mounted-volume ID, or None when it cannot be determined."""
+        try:
+            file_stat = os.stat(filepath)
+        except OSError:
+            return None
+
+        if os.name == "nt":
+            volume_name = self._get_windows_volume_name(filepath)
+            if volume_name is None:
+                return None
+            return "windows", volume_name
+
+        return "posix", file_stat.st_dev
+
+    @staticmethod
+    def _get_windows_volume_name(filepath):
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        get_volume_path_name = kernel32.GetVolumePathNameW
+        get_volume_path_name.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.LPWSTR,
+            wintypes.DWORD,
+        ]
+        get_volume_path_name.restype = wintypes.BOOL
+        get_volume_name = kernel32.GetVolumeNameForVolumeMountPointW
+        get_volume_name.argtypes = [
+            wintypes.LPCWSTR,
+            wintypes.LPWSTR,
+            wintypes.DWORD,
+        ]
+        get_volume_name.restype = wintypes.BOOL
+
+        mount_path = ctypes.create_unicode_buffer(32768)
+        if not get_volume_path_name(filepath, mount_path, len(mount_path)):
+            return None
+
+        mount_point = mount_path.value
+        if not mount_point.endswith("\\"):
+            mount_point += "\\"
+
+        volume_name = ctypes.create_unicode_buffer(50)
+        if not get_volume_name(mount_point, volume_name, len(volume_name)):
+            return None
+        return volume_name.value.casefold()
 
     def build_duplicate_deletion_plan(self, duplicate_checksums):
         scan_root = os.path.realpath(self.path)
@@ -259,6 +316,13 @@ class FileScanner:
         retained_files = {}
 
         for checksum in duplicate_checksums:
+            if checksum in self.uncertain_volume_checksums:
+                paths = ", ".join(self.uncertain_volume_checksums[checksum])
+                raise ValueError(
+                    f"Cannot safely delete checksum {checksum}: mounted volume "
+                    f"identity is unknown for {paths}."
+                )
+
             verified_inside = []
             verified_outside = []
             seen_paths = set()
@@ -281,6 +345,11 @@ class FileScanner:
                     continue
                 if self.calculate_checksum(filepath) != checksum:
                     continue
+                if self.get_storage_volume(filepath) is None:
+                    raise ValueError(
+                        f"Cannot safely delete checksum {checksum}: mounted volume "
+                        f"identity is unknown for {filepath}."
+                    )
 
                 try:
                     is_inside = os.path.commonpath([scan_root, realpath]) == scan_root
@@ -316,6 +385,8 @@ class FileScanner:
                 raise ValueError(f"Retained copy is no longer available: {retained_path}")
             if self.calculate_checksum(retained_path) != checksum:
                 raise ValueError(f"Retained copy changed after planning: {retained_path}")
+            if self.get_storage_volume(retained_path) is None:
+                raise ValueError(f"Retained copy volume is unknown: {retained_path}")
 
             for filepath in deletion_plan.get(checksum, []):
                 realpath = os.path.realpath(filepath)
@@ -329,6 +400,8 @@ class FileScanner:
                     raise ValueError(f"Planned file is no longer available: {filepath}")
                 if self.calculate_checksum(filepath) != checksum:
                     raise ValueError(f"Planned file changed after planning: {filepath}")
+                if self.get_storage_volume(filepath) is None:
+                    raise ValueError(f"Planned file volume is unknown: {filepath}")
 
         for checksum, paths in deletion_plan.items():
             for filepath in paths:
@@ -374,6 +447,13 @@ class FileScanner:
                 except TypeError:
                     continue
             print("--")
+        for checksum, paths in self.uncertain_volume_checksums.items():
+            print(
+                f"WARNING: mounted volume identity is unknown for checksum "
+                f"{checksum}; cleanup will refuse this group."
+            )
+            for filepath in paths:
+                print(f"  Volume unknown: {filepath}")
 
     def cleanup_json(self):
         # check self.restructured_dict. if the file no longer exists, remove it from the dictionary
@@ -447,8 +527,17 @@ if __name__ == "__main__":
     if args.deleteDuplicate:
         print("Assisted cleanup")
         try:
+            duplicate_checksums = scanner.find_duplicate_files()
+            for checksum, paths in scanner.uncertain_volume_checksums.items():
+                print(
+                    f"Mounted volume identity is unknown for checksum {checksum}; "
+                    "cleanup will refuse this group.",
+                    file=sys.stderr,
+                )
+                for filepath in paths:
+                    print(f"  Volume unknown: {filepath}", file=sys.stderr)
             deletion_plan, retained_files = scanner.build_duplicate_deletion_plan(
-                scanner.find_duplicate_files()
+                duplicate_checksums
             )
             planned_count = sum(len(paths) for paths in deletion_plan.values())
             print(f"Planned deletions: {planned_count}")

@@ -23,6 +23,12 @@ across two volumes are allowed. Three copies on one volume are flagged, as are
 four copies split 2+2 across two volumes. Both duplicate reporting and the
 assisted duplicate-cleanup flow use this same rule.
 
+Volume IDs use `st_dev` on POSIX systems and Windows volume GUIDs on Windows;
+these identify mounted volumes, not physical devices. POSIX bind mounts may
+share an ID with their backing filesystem, and some network or unusual
+filesystems may not provide a usable ID. The scanner warns when it cannot
+identify a volume, and assisted cleanup refuses to delete that checksum group.
+
 Help organize, index your data.
 
 Text / JSON heavy output as we want to use this scripts across platform and decades.
