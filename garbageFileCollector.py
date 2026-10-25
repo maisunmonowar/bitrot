@@ -12,12 +12,21 @@ class FileDeleter:
         except FileNotFoundError:
             self.delete_list = []
 
+    @staticmethod
+    def normalize_path(filepath):
+        return os.path.normcase(os.path.abspath(os.path.normpath(filepath)))
+
     def get_file_info(self, filepath):
         size = os.path.getsize(filepath)
         with open(filepath, 'rb') as f:
             data = f.read()
             checksum = hashlib.sha256(data).hexdigest()
-        return {'name': os.path.basename(filepath), 'size': size, 'checksum': checksum}
+        return {
+            'path': self.normalize_path(filepath),
+            'name': os.path.basename(filepath),
+            'size': size,
+            'checksum': checksum
+        }
 
     def add_file_to_delete_list(self, filepath):
         file_info = self.get_file_info(filepath)
@@ -45,15 +54,29 @@ class FileDeleter:
 
     def cleanup_folder(self, folderpath):
         files_to_delete = []
-        for root, dirs, files in os.walk(folderpath):
+        legacy_entries = sum(
+            1 for entry in self.delete_list
+            if isinstance(entry, dict) and not entry.get('path')
+        )
+        if legacy_entries:
+            print(
+                f"Ignoring {legacy_entries} garbage-list entries without a path; "
+                "they cannot be matched safely."
+            )
+
+        for root, _, files in os.walk(folderpath):
             for file in files:
                 filepath = os.path.join(root, file)
                 file_info = self.get_file_info(filepath)
                 for f in self.delete_list:
-                    if f['name'] == file_info['name']:
-                        if f['size'] == file_info['size']:
-                            if f['checksum'] == file_info['checksum']:
-                                files_to_delete.append(filepath)
+                    if (
+                        isinstance(f, dict)
+                        and f.get('path') == file_info['path']
+                        and f.get('size') == file_info['size']
+                        and f.get('checksum') == file_info['checksum']
+                    ):
+                        files_to_delete.append(filepath)
+                        break
 
         print(f"We found {len(files_to_delete)} files that should be deleted according to the provided json list.")
         if len(files_to_delete) == 0:

@@ -74,9 +74,14 @@ melt.sh foo.bar.frozen > foo_recovered.bar
 
 ## Add files to delete list
 
-`python3 garbageFileCollector.py --add file.foo` marks only the file as garbage.
+`python3 garbageFileCollector.py --add file.foo` marks only that absolute path
+as garbage. Identical files at other paths are not affected.
 
-`python3 garbageFileCollector.py --addFolder /path/to/folder` marks whole folder as garbage. 
+`python3 garbageFileCollector.py --addFolder /path/to/folder` marks each file
+under that folder by its absolute path.
+
+Older garbage-list entries without a saved path are ignored during cleanup
+because they cannot safely identify a specific file.
 
 
 
