@@ -124,14 +124,9 @@ class FileScanner:
     def checksum(self, file):
         if self.verboseMode:
             print("Calculating checksum for: " + file)
-        sha256_hash = hashlib.sha256()
-        with open(file, "rb") as f:
-            for byte_block in iter(lambda: f.read(4096), b""):
-                sha256_hash.update(byte_block)
-        
+        this_file_hash = self.calculate_checksum(file)
         this_file_dir = os.path.dirname(file)
         this_file_basename = os.path.basename(file)
-        this_file_hash = sha256_hash.hexdigest()
         if this_file_dir in self.newly_hashed_files:
             self.newly_hashed_files[this_file_dir].hash_dict[this_file_basename] = this_file_hash
         else:
@@ -139,6 +134,14 @@ class FileScanner:
             self.newly_hashed_files[this_file_dir].hash_dict[this_file_basename] = this_file_hash
 
         return this_file_hash
+
+    @staticmethod
+    def calculate_checksum(filepath):
+        sha256_hash = hashlib.sha256()
+        with open(filepath, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest()
 
     def create_dict(self):
         ''' It'll read the target directory. 
@@ -281,6 +284,88 @@ class FileScanner:
         drive = os.path.dirname(filepath)
         return drive
 
+    def build_duplicate_deletion_plan(self, duplicate_checksums):
+        scan_root = os.path.realpath(self.path)
+        deletion_plan = {}
+        retained_files = {}
+
+        for checksum in duplicate_checksums:
+            verified_inside = []
+            verified_outside = []
+            seen_paths = set()
+
+            for entry in self.restructured_dict.get(checksum, []):
+                if not isinstance(entry, dict) or not entry.get("fullpath"):
+                    raise ValueError(
+                        f"Cannot safely determine copies for checksum {checksum}: "
+                        "a registry entry has no file path."
+                    )
+
+                filepath = os.path.abspath(entry["fullpath"])
+                realpath = os.path.realpath(filepath)
+                normalized_path = os.path.normcase(realpath)
+                if normalized_path in seen_paths:
+                    continue
+                seen_paths.add(normalized_path)
+
+                if os.path.islink(filepath) or not os.path.isfile(filepath):
+                    continue
+                if self.calculate_checksum(filepath) != checksum:
+                    continue
+
+                try:
+                    is_inside = os.path.commonpath([scan_root, realpath]) == scan_root
+                except ValueError:
+                    is_inside = False
+
+                if is_inside:
+                    verified_inside.append(filepath)
+                else:
+                    verified_outside.append(filepath)
+
+            if not verified_inside and not verified_outside:
+                raise ValueError(
+                    f"Cannot safely delete checksum {checksum}: no existing copy "
+                    "matches the recorded checksum."
+                )
+
+            if verified_outside:
+                retained_files[checksum] = sorted(verified_outside)[0]
+                deletion_plan[checksum] = sorted(verified_inside)
+            else:
+                verified_inside.sort()
+                retained_files[checksum] = verified_inside[0]
+                deletion_plan[checksum] = verified_inside[1:]
+
+        return deletion_plan, retained_files
+
+    def execute_duplicate_deletion_plan(self, deletion_plan, retained_files):
+        scan_root = os.path.realpath(self.path)
+
+        for checksum, retained_path in retained_files.items():
+            if not os.path.isfile(retained_path) or os.path.islink(retained_path):
+                raise ValueError(f"Retained copy is no longer available: {retained_path}")
+            if self.calculate_checksum(retained_path) != checksum:
+                raise ValueError(f"Retained copy changed after planning: {retained_path}")
+
+            for filepath in deletion_plan.get(checksum, []):
+                realpath = os.path.realpath(filepath)
+                try:
+                    is_inside = os.path.commonpath([scan_root, realpath]) == scan_root
+                except ValueError:
+                    is_inside = False
+                if not is_inside:
+                    raise ValueError(f"Refusing to delete a path outside the scan directory: {filepath}")
+                if os.path.islink(filepath) or not os.path.isfile(filepath):
+                    raise ValueError(f"Planned file is no longer available: {filepath}")
+                if self.calculate_checksum(filepath) != checksum:
+                    raise ValueError(f"Planned file changed after planning: {filepath}")
+
+        for checksum, paths in deletion_plan.items():
+            for filepath in paths:
+                print(f"Deleting: {filepath} (checksum {checksum})")
+                os.remove(filepath)
+
     
     def create_dosier(self, filepath):
         '''
@@ -341,8 +426,11 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verboseMode', help="Enable verbose mode. Prints more details.", action="store_true")
     parser.add_argument('-j', '--updateJson', help="Use it to store the progress to JSON file. Otherwise, all calculation in RAM.", action="store_true")
     parser.add_argument('-a', '--deleteDuplicate', help='Assisted duplicate cleanup. If you think your provide path is the duplicate folder, it will delete all the duplicate file.', action='store_true')
+    parser.add_argument('--confirmDelete', help="Execute the deletion plan shown by --deleteDuplicate. Without this flag, cleanup is a dry run.", action="store_true")
 
     args = parser.parse_args()
+    if args.confirmDelete and not args.deleteDuplicate:
+        parser.error("--confirmDelete requires --deleteDuplicate")
 
     # show args help if no arguments are passed
     if len(sys.argv) == 1:
@@ -386,25 +474,26 @@ if __name__ == "__main__":
                         print(checksum, end= " ")
                         print(file['size'], end= "\t")
                         print(file['fullpath'])
-    # Assisted cleanup. Deletes duplicate files in a directory. 
+    # Assisted cleanup. The default is a dry run; deletion requires explicit confirmation.
     if args.deleteDuplicate:
         print("Assisted cleanup")
-        # %%
-        for checksum in scanner.find_duplicate_files():
-            for file in scanner.restructured_dict[checksum]:
-                try:
-                    # print(checksum, end= " ")
-                    # print(file['size'], end= "\t")
-                    # print(file['fullpath'])
-                    # figureout basepath
-                    fullpath = file['fullpath']
-                    basepath = os.path.dirname(fullpath)
-                    # if basepath == self.path delete the file
-                    if basepath == scanner.path:
-                        print("Deleting: " + fullpath)
-                        os.remove(fullpath)        
-                except TypeError:
-                    continue
+        try:
+            deletion_plan, retained_files = scanner.build_duplicate_deletion_plan(
+                scanner.find_duplicate_files()
+            )
+            planned_count = sum(len(paths) for paths in deletion_plan.values())
+            print(f"Planned deletions: {planned_count}")
+            for checksum, paths in deletion_plan.items():
+                print(f"Checksum {checksum}; keeping: {retained_files[checksum]}")
+                for filepath in paths:
+                    print(f"  Delete: {filepath}")
+            if args.confirmDelete:
+                scanner.execute_duplicate_deletion_plan(deletion_plan, retained_files)
+            else:
+                print("Dry run only. Re-run with --confirmDelete to execute this exact plan.")
+        except (OSError, ValueError) as error:
+            print(f"Duplicate cleanup aborted: {error}", file=sys.stderr)
+            sys.exit(1)
     # Write the dictionary to a json file
     if args.updateJson:
         # %%

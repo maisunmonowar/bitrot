@@ -4,7 +4,7 @@ This list is ordered by priority. Each item should be implemented as a focused c
 
 ## P0 — Data safety and recovery correctness
 
-- [ ] **Make duplicate cleanup preserve a safe copy**
+- [ ] **Make duplicate cleanup preserve a safe copy** ([#8](https://github.com/maisunmonowar/bitrot/issues/8))
   - Review the `--deleteDuplicate` flow in `bitRotChecker.py`.
   - Build and display an explicit deletion plan before deleting anything.
   - Never delete every copy of a checksum group; retain at least one copy and abort if the tool cannot determine a safe choice.
