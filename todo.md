@@ -18,7 +18,7 @@ This list is ordered by priority. Each item should be implemented as a focused c
   - Ensure cleanup cannot silently expand a single-file request into deletion of other files.
   - Add tests for same-name identical files in different directories, renamed files, and folder-based marking.
 
-- [ ] **Make Reed–Solomon recovery failures explicit**
+- [ ] **Make Reed–Solomon recovery failures explicit** ([#10](https://github.com/maisunmonowar/bitrot/issues/10))
   - Fix the uncorrectable-failure counter in `rsbep-backup/src/rsbep.c`; ensure it increments the counter value rather than advancing the counter pointer.
   - Review decoder behavior for uncorrectable and truncated input so it does not report success or produce a success-shaped recovered file.
   - Propagate errors and exit statuses through the `melt.sh` pipeline.

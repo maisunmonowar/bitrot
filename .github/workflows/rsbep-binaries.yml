@@ -1,0 +1,79 @@
+name: Reed-Solomon binaries
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/rsbep-binaries.yml"
+      - "patches/**"
+      - "rsbep-backup"
+      - "rsbep_cli.py"
+      - "tests/test_rsbep_cli.py"
+  push:
+    branches:
+      - dev
+    paths:
+      - ".github/workflows/rsbep-binaries.yml"
+      - "patches/**"
+      - "rsbep-backup"
+      - "rsbep_cli.py"
+      - "tests/test_rsbep_cli.py"
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            binary: bin/rsbep
+            compiler: cc
+          - os: macos-latest
+            binary: bin/rsbep
+            compiler: cc
+          - os: windows-latest
+            binary: bin/rsbep.exe
+            compiler: gcc
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: mingw-w64-ucrt-x86_64-gcc
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Apply recovery safety patch
+        run: git apply patches/rsbep-safety.patch
+
+      - name: Build native executable (Linux/macOS)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          mkdir -p bin
+          ${{ matrix.compiler }} -O2 -std=gnu99 -o ${{ matrix.binary }} rsbep-backup/src/rsbep.c rsbep-backup/src/rs.c
+
+      - name: Build native executable (Windows)
+        if: runner.os == 'Windows'
+        shell: msys2 {0}
+        run: |
+          mkdir -p bin
+          gcc -O2 -std=gnu99 -o ${{ matrix.binary }} rsbep-backup/src/rsbep.c rsbep-backup/src/rs.c
+
+      - name: Run tests
+        run: python -m unittest discover -s tests -v
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rsbep-${{ runner.os }}
+          path: ${{ matrix.binary }}

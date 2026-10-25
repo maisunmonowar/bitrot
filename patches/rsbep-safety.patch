@@ -1,0 +1,154 @@
+diff --git a/rsbep-backup/contrib/melt.sh b/rsbep-backup/contrib/melt.sh
+index a1cfc01..a455730 100755
+--- a/rsbep-backup/contrib/melt.sh
++++ b/rsbep-backup/contrib/melt.sh
+@@ -1,16 +1,42 @@
+ #!/bin/sh
++set -eu
+ if [ $# -ne 1 ] ; then
+ 	echo Usage: $0 filename   \(...will output to stdout\)
+ 	exit 1
+ fi
+ if [ ! -f "$1" ] ; then echo $1 is not a regular file\! ; exit 1 ; fi
+ 
+-dd if="$1" conv=noerror,sync 2>/dev/null | rsbep -d -B 255 -D 223 -R 4080 | {
+-	read SIG
+-	if [ "$SIG" != "MAGIC_TTSIOD_RS" ] ; then
+-		echo "Beyond capacity to correct... Sorry." > /dev/stderr
++decoded_file=`mktemp "${TMPDIR:-/tmp}/rsbep-decoded.XXXXXX"`
++recovered_file=`mktemp "${TMPDIR:-/tmp}/rsbep-recovered.XXXXXX"`
++trap 'rm -f "$decoded_file" "$recovered_file"' EXIT HUP INT TERM
++
++if ! rsbep -d -B 255 -D 223 -R 4080 < "$1" > "$decoded_file" ; then
++	echo "rsbep decoder failed." >&2
++	exit 1
++fi
++
++exec 3< "$decoded_file"
++if ! IFS= read -r SIG <&3 ; then
++	echo "Missing recovery signature." >&2
++	exit 1
++fi
++if [ "$SIG" != "MAGIC_TTSIOD_RS" ] ; then
++	echo "Beyond capacity to correct... Sorry." >&2
++	exit 1
++fi
++if ! IFS= read -r SIZE <&3 ; then
++	echo "Missing recovered size." >&2
++	exit 1
++fi
++case "$SIZE" in
++	''|*[!0-9]*)
++		echo "Invalid recovered size." >&2
+ 		exit 1
+-	fi
+-	read SIZE
+-	rsbep_chopper $SIZE
+-}
++		;;
++esac
++
++if ! rsbep_chopper "$SIZE" <&3 > "$recovered_file" ; then
++	echo "Recovered data is truncated." >&2
++	exit 1
++fi
++cat "$recovered_file"
+diff --git a/rsbep-backup/src/rsbep.c b/rsbep-backup/src/rsbep.c
+index fef6cbe..6796861 100644
+--- a/rsbep-backup/src/rsbep.c
++++ b/rsbep-backup/src/rsbep.c
+@@ -33,6 +33,10 @@
+ #include <unistd.h>
+ #include <string.h>
+ #include <assert.h>
++#ifdef _WIN32
++#include <fcntl.h>
++#include <io.h>
++#endif
+ 
+ #ifdef ASM_I386
+   // the hardcoded i386-asm version only for RS(255,223)  
+@@ -102,7 +106,7 @@ inline void decode_and_write(char *ec_buf, int rs_bsize, int bep_size,
+ 			"%s: errors corrected: %ld uncorrectable blocks: %ld\r",
+ 			argv, *sum_of_failures, *uncorrectable_failures);
+ 	} else if (failure == -1) {
+-	    (void)*uncorrectable_failures++;
++	    (*uncorrectable_failures)++;
+ 	    if (!quiet && verbose)
+ 		fprintf(stderr,
+ 			"%s: errors corrected: %ld uncorrectable blocks: %ld\r",
+@@ -128,6 +132,14 @@ int main(int argc, char *argv[])
+     long uncorrectable_failures = 0;
+     extern char *optarg;
+ 
++#ifdef _WIN32
++    if (_setmode(_fileno(stdin), _O_BINARY) == -1 ||
++	_setmode(_fileno(stdout), _O_BINARY) == -1) {
++	perror("failed to set binary mode");
++	return 1;
++    }
++#endif
++
+     assert(sizeof(dtype) == 1);	//anything works only with bytes
+ 
+     while ((i = getopt(argc, argv, "dvqB:D:R:")) != EOF) {
+@@ -208,10 +220,18 @@ int main(int argc, char *argv[])
+ 	//go on:
+ 	while (!feof(stdin)) {
+ 	    long got = fread(tr_buf, 1, bep_size * rs_bsize, stdin);	//read the encoded data
+-	    if (!got)
++	    if (!got) {
++		if (ferror(stdin)) {
++		    perror("failed to read encoded input");
++		    exit(1);
++		}
+ 		break;
+-	    if (got < (bep_size * rs_bsize)) {
+-		bzero((tr_buf + got), (bep_size * rs_bsize) - got);	//zero remaining data - should never happen!
++	    }
++	    if (got != (bep_size * rs_bsize)) {
++		fprintf(stderr,
++			"%s: truncated encoded block: expected %ld bytes, received %ld\n",
++			argv[0], (long)(bep_size * rs_bsize), got);
++		exit(1);
+ 	    }
+ 
+ 	    distribute(tr_buf, ec_buf, bep_size, rs_bsize, 1);
+@@ -246,7 +266,7 @@ int main(int argc, char *argv[])
+ 		long got =
+ 		    fread((ec_buf + i * rs_bsize), 1, rs_dsize, stdin);
+ 		if (got < rs_dsize) {
+-		    bzero((ec_buf + i * rs_bsize + got), rs_dsize - got);	//zero remaining data
++		    memset((ec_buf + i * rs_bsize + got), 0, rs_dsize - got);
+ 		}
+ 		//encode rs_dsize bytes of data, append Parity in row
+ 		rse32((ec_buf + i * rs_bsize),
+@@ -268,5 +288,7 @@ int main(int argc, char *argv[])
+     if (ec_buf)
+ 	free(ec_buf);
+     if (tr_buf)
+ 	free(tr_buf);
++    if (decode && uncorrectable_failures > 0)
++	return 1;
+     return 0;
+ }
+diff --git a/rsbep-backup/src/rsbep_chopper.c b/rsbep-backup/src/rsbep_chopper.c
+index 292b9ce..39f3ed3 100644
+--- a/rsbep-backup/src/rsbep_chopper.c
++++ b/rsbep-backup/src/rsbep_chopper.c
+@@ -16,7 +16,14 @@ int main(int argc, char *argv[])
+ 	long long sofar = 0;
+ 	while(sofar<total) {
+ 	    int len = read(0, buf, 131072);
+-	    if (!len) break;
++	    if (len < 0) {
++		perror("Read failed!");
++		exit(1);
++	    }
++	    if (!len) {
++		fprintf(stderr, "Input ended before the requested size was read.\n");
++		exit(1);
++	    }
+ 	    if (sofar + len <= total) {
+ 		if (len != write(1, buf, len)) {
+ 		    perror("Write failed!");
