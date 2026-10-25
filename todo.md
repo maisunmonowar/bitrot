@@ -27,7 +27,7 @@ This list is ordered by priority. Each item should be implemented as a focused c
 
 ## P1 — Correctness and operational reliability
 
-- [ ] **Specify and test the duplicate-count policy**
+- [x] **Specify and test the duplicate-count policy**
   - Reconcile the duplicate rules in `README.md`, `bitRotChecker.py`, and its `find_duplicate_files()` docstring.
   - In particular, decide whether the policy flags more than three total copies, exactly three copies across drives, or a different condition.
   - Write examples for the allowed and disallowed cases, then implement tests for those cases.

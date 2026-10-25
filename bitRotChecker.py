@@ -8,7 +8,7 @@ Python script to
 6. store them in a dictionary
 
 Goal of this script:
-Find the files which have more that 2 copies. >> So you can save disk space.
+Find files that exceed the configured copy limits, so you can save disk space.
 Find the files which have only 1 copy. >> So you can duplicate them for redundancy.
 
 Since I have multiple drives and multiple PC, this script is to make sure 
@@ -232,50 +232,19 @@ class FileScanner:
                     yield checksum
        
     def find_duplicate_files(self):
-        '''
-        Definition of duplicate files:
-        1. Maximum of 2 copies of the same file in a single physical hard drive.
-        2. Exactly 3 copies of the same file in 2 separate physical storage media.
-
-        Example:
-        Portable HDD Partition A: /media/maisun/backup-2021-1/
-        Portable HDD Partition B: /media/maisun/backup-2012-2/
-        '''
-
+        """Return checksums with more than three copies or over two per drive."""
         duplicate_files = []
         for checksum in self.restructured_dict:
             file_copies = self.restructured_dict[checksum]
-            num_copies = len(file_copies)
+            copies_per_drive = {}
+            for file_copy in file_copies:
+                drive = self.get_physical_drive(file_copy["fullpath"])
+                copies_per_drive[drive] = copies_per_drive.get(drive, 0) + 1
 
-            # Check if there are more than 2 copies in a single physical hard drive
-            if num_copies > 2 and self.is_same_physical_drive(file_copies):
-                duplicate_files.append(checksum)
-
-            # Check if there are exactly 3 copies in 2 separate physical storage media
-            if num_copies > 3 and self.is_different_physical_drives(file_copies):
+            if len(file_copies) > 3 or any(count > 2 for count in copies_per_drive.values()):
                 duplicate_files.append(checksum)
 
         return duplicate_files
-
-    def is_same_physical_drive(self, file_copies):
-        '''
-        Check if all file copies are in the same physical hard drive.
-        '''
-        drives = set()
-        for file in file_copies:
-            drive = self.get_physical_drive(file['fullpath'])
-            drives.add(drive)
-        return len(drives) == 1
-
-    def is_different_physical_drives(self, file_copies):
-        '''
-        Check if file copies are in different physical storage media.
-        '''
-        drives = set()
-        for file in file_copies:
-            drive = self.get_physical_drive(file['fullpath'])
-            drives.add(drive)
-        return len(drives) >= 2
 
     def get_physical_drive(self, filepath):
         '''

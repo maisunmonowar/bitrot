@@ -10,11 +10,18 @@ Ideally, you should follow a 3 2 1 backup policy. Maybe 2 NAS syncing overnight,
 
 Repackage super important file so that you can recover them from partial data corruption. 
 
-Make sure no important file has only single copy. 
+Make sure no important file has only single copy.
 
-Make sure you don't have more that 3 copies of the same file in your collection. 
+Keep no more than three copies of a file in total and no more than two copies
+on any one mounted volume.
 
-Make sure that you don't have more than 2 copies of the same file on a same drive. 
+## Duplicate-count policy
+
+The duplicate report flags a checksum when it has more than three copies total
+or more than two copies on any one mounted volume. Three copies split 2+1
+across two volumes are allowed. Three copies on one volume are flagged, as are
+four copies split 2+2 across two volumes. Both duplicate reporting and the
+assisted duplicate-cleanup flow use this same rule.
 
 Help organize, index your data.
 
