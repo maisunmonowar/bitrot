@@ -12,7 +12,7 @@ This list is ordered by priority. Each item should be implemented as a focused c
   - Default to dry-run or confirmation with the exact paths to be deleted.
   - Add tests proving that root-level and nested duplicates are handled safely and that at least one copy remains.
 
-- [ ] **Define whether the garbage list identifies paths or file contents**
+- [ ] **Define whether the garbage list identifies paths or file contents** ([#9](https://github.com/maisunmonowar/bitrot/issues/9))
   - Reconcile the README promise that `--add` marks only one file with `garbageFileCollector.py`, which currently matches by filename, size, and checksum and can therefore match identical files elsewhere.
   - Adopt path-specific marking as the default, or document and expose content-based matching as a separate explicit mode.
   - Ensure cleanup cannot silently expand a single-file request into deletion of other files.
