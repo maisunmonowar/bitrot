@@ -5,18 +5,20 @@ on:
     paths:
       - ".github/workflows/rsbep-binaries.yml"
       - "patches/**"
+      - "bitRotChecker.py"
       - "rsbep-backup"
       - "rsbep_cli.py"
-      - "tests/test_rsbep_cli.py"
+      - "tests/**"
   push:
     branches:
       - dev
     paths:
       - ".github/workflows/rsbep-binaries.yml"
       - "patches/**"
+      - "bitRotChecker.py"
       - "rsbep-backup"
       - "rsbep_cli.py"
-      - "tests/test_rsbep_cli.py"
+      - "tests/**"
 
 jobs:
   build:

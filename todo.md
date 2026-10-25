@@ -33,7 +33,7 @@ This list is ordered by priority. Each item should be implemented as a focused c
   - Write examples for the allowed and disallowed cases, then implement tests for those cases.
   - Ensure the duplicate report and deletion workflow use the same policy.
 
-- [ ] **Identify storage volumes consistently**
+- [x] **Identify storage volumes consistently**
   - Replace `get_physical_drive()` behavior that currently treats a file’s parent directory as its drive.
   - Decide whether the policy is based on mounted volumes or physical devices; document platform-specific limitations.
   - Add tests showing that different folders on the same volume are treated consistently and that separate volumes are distinguished where supported.

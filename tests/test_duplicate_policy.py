@@ -28,7 +28,7 @@ class DuplicatePolicyTests(unittest.TestCase):
 
                 with patch.object(
                     self.scanner,
-                    "get_physical_drive",
+                    "get_storage_volume",
                     side_effect=path_volumes.__getitem__,
                 ):
                     result = self.scanner.find_duplicate_files()
